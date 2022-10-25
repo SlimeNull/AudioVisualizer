@@ -58,5 +58,15 @@ namespace LibMusicVisualizer
 
             return result;
         }
+
+        public static double[] TakeSpectrumOfFrequency(double[] spectrum, double sampleRate, double frequency)
+        {
+            double frequencyPerSampe = sampleRate / spectrum.Length;
+
+            int lengthInNeed = (int)(Math.Min(frequency / frequencyPerSampe, spectrum.Length));
+            double[] result = new double[lengthInNeed];
+            Array.Copy(spectrum, 0, result, 0, lengthInNeed);
+            return result;
+        }
     }
 }

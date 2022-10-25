@@ -2,8 +2,11 @@ using LibMusicVisualizer;
 using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
+using SharpDX;
 using SharpDX.Direct2D1;
+using SharpDX.Mathematics.Interop;
 using System;
+using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
 
@@ -15,8 +18,9 @@ namespace MusicVisualizerDx
         Visualizer visualizer;             // 可视化
         double[]? spectrumData;            // 频谱数据
 
-        Color[] allColors;                 // 渐变颜色
+        RawColor4[] allColors;                 // 渐变颜色
 
+        Factory fac;
         RenderTarget rt;
 
         public MainWindow()
@@ -30,6 +34,18 @@ namespace MusicVisualizerDx
             capture.DataAvailable += Capture_DataAvailable;                          // 订阅事件
 
             InitializeComponent();
+
+            fac = new Factory();
+
+            rt = new WindowRenderTarget(fac,
+                new RenderTargetProperties(
+                    new PixelFormat(SharpDX.DXGI.Format.R8G8B8A8_UNorm, AlphaMode.Ignore)),
+                new HwndRenderTargetProperties()
+            {
+                Hwnd = drawingPanel.Handle,
+                PixelSize = new Size2(drawingPanel.Width, drawingPanel.Height),
+                PresentOptions = PresentOptions.None,
+            });
         }
 
         /// <summary>
@@ -139,38 +155,38 @@ namespace MusicVisualizerDx
         /// 获取 HSV 中所有的基础颜色 (饱和度和明度均为最大值)
         /// </summary>
         /// <returns>所有的 HSV 基础颜色(共 256 * 6 个, 并且随着索引增加, 颜色也会渐变)</returns>
-        private Color[] GetAllHsvColors()
+        private RawColor4[] GetAllHsvColors()
         {
-            Color[] result = new Color[256 * 6];
+            RawColor4[] result = new RawColor4[256 * 6];
 
             for (int i = 0; i < 256; i++)
             {
-                result[i] = Color.FromArgb(255, i, 0);
+                result[i] = new RawColor4(1, i / 255f, 0, 1);
             }
 
             for (int i = 0; i < 256; i++)
             {
-                result[256 + i] = Color.FromArgb(255 - i, 255, 0);
+                result[256 + i] = new RawColor4((255 - i) / 255f, 1, 0, 1);
             }
 
             for (int i = 0; i < 256; i++)
             {
-                result[512 + i] = Color.FromArgb(0, 255, i);
+                result[512 + i] = new RawColor4(0, 1, i / 255f, 1);
             }
 
             for (int i = 0; i < 256; i++)
             {
-                result[768 + i] = Color.FromArgb(0, 255 - i, 255);
+                result[768 + i] = new RawColor4(0, (255 - i) / 255f, 1, 1);
             }
 
             for (int i = 0; i < 256; i++)
             {
-                result[1024 + i] = Color.FromArgb(i, 0, 255);
+                result[1024 + i] = new RawColor4(i / 255f, 0, 1, 1);
             }
 
             for (int i = 0; i < 256; i++)
             {
-                result[1280 + i] = Color.FromArgb(255, 0, 255 - i);
+                result[1280 + i] = new RawColor4(1, 0, (255 - i) / 255f, 1);
             }
 
             return result;
@@ -229,30 +245,37 @@ namespace MusicVisualizerDx
         /// <param name="xOffset">波浪的起始X坐标</param>
         /// <param name="yOffset">波浪的其实Y坐标</param>
         /// <param name="scale">频谱的缩放(使用负值可以翻转波浪)</param>
-        private void DrawGradient(RenderTarget g, Color down, Color up, double[] spectrumData, int pointCount, int drawingWidth, float xOffset, float yOffset, double scale)
+        private void DrawGradient(RenderTarget g, RawColor4 down, RawColor4 up, double[] spectrumData, int pointCount, int drawingWidth, float xOffset, float yOffset, double scale)
         {
-            GraphicsPath path = new GraphicsPath();
-
-            PointF[] points = new PointF[pointCount + 2];
+            RawVector2[] points = new RawVector2[pointCount + 2];
             for (int i = 0; i < pointCount; i++)
             {
                 double x = i * drawingWidth / pointCount + xOffset;
                 double y = spectrumData[i * spectrumData.Length / pointCount] * scale + yOffset;
-                points[i + 1] = new PointF((float)x, (float)y);
+                points[i + 1] = new RawVector2((float)x, (float)y);
             }
 
-            points[0] = new PointF(xOffset, yOffset);
-            points[points.Length - 1] = new PointF(xOffset + drawingWidth, yOffset);
+            points[0] = new RawVector2(xOffset, yOffset);
+            points[points.Length - 1] = new RawVector2(xOffset + drawingWidth, yOffset);
 
-            path.AddCurve(points);
+            using PathGeometry geo = new PathGeometry(fac);
+            using GeometrySink sink = geo.Open();
+            sink.BeginFigure(points[0], FigureBegin.Filled);
+            for (int i = 1; i < points.Length; i++)
+                sink.AddLine(points[i]);
+            sink.EndFigure(FigureEnd.Closed);
 
             float upP = (float)points.Min(v => v.Y);
 
             if (Math.Abs(upP - yOffset) < 1)
                 return;
 
-            using Brush brush = new LinearGradientBrush(new PointF(0, yOffset), new PointF(0, upP), down, up);
-            g.FillPath(brush, path);
+            LinearGradientBrushProperties linearGradientBrushProperties = new LinearGradientBrushProperties() { StartPoint = new RawVector2(0, yOffset), EndPoint = new RawVector2(0, upP) };
+            using GradientStopCollection gradientStopCollection = 
+                new GradientStopCollection(rt, new GradientStop[] { new GradientStop() { Position = 0, Color = down }, new GradientStop() { Position = 1, Color = up } });
+            using LinearGradientBrush brush = new LinearGradientBrush(rt, linearGradientBrushProperties, gradientStopCollection);
+
+            g.FillGeometry(geo, brush);
         }
 
         /// <summary>
@@ -268,16 +291,16 @@ namespace MusicVisualizerDx
         /// <param name="yOffset">绘图的起始 Y 坐标</param>
         /// <param name="spacing">条形与条形之间的间隔(像素)</param>
         /// <param name="scale"></param>
-        private void DrawGradientStrips(RenderTarget g, Color down, Color up, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
+        private void DrawGradientStrips(RenderTarget g, RawColor4 down, RawColor4 up, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
         {
             float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
-            PointF[] points = new PointF[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new PointF((float)x, (float)y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
             float upP = (float)points.Min(v => v.Y < 0 ? yOffset + v.Y : yOffset);
@@ -289,11 +312,14 @@ namespace MusicVisualizerDx
             if (Math.Abs(upP - downP) < 1)
                 return;
 
-            using Brush brush = new LinearGradientBrush(new PointF(0, downP), new PointF(0, upP), down, up);
+            LinearGradientBrushProperties linearGradientBrushProperties = new LinearGradientBrushProperties() { StartPoint = new RawVector2(0, downP), EndPoint = new RawVector2(0, upP) };
+            using GradientStopCollection gradientStopCollection =
+                new GradientStopCollection(rt, new GradientStop[] { new GradientStop() { Position = 0, Color = down }, new GradientStop() { Position = 1, Color = up } });
+            using Brush brush = new LinearGradientBrush(rt, linearGradientBrushProperties, gradientStopCollection);
 
             for (int i = 0; i < stripCount; i++)
             {
-                PointF p = points[i];
+                RawVector2 p = points[i];
                 float y = yOffset;
                 float height = p.Y;
 
@@ -303,7 +329,7 @@ namespace MusicVisualizerDx
                     height = -height;
                 }
 
-                g.FillRectangle(brush, new RectangleF(p.X, y, stripWidth, height));
+                g.FillRectangle(new RawRectangleF(p.X, y, p.X + stripWidth, y + height), brush);
             }
         }
 
@@ -311,24 +337,32 @@ namespace MusicVisualizerDx
         /// 画曲线
         /// </summary>
         /// <param name="g"></param>
-        /// <param name="pen"></param>
+        /// <param name="brush"></param>
         /// <param name="spectrumData"></param>
         /// <param name="pointCount"></param>
         /// <param name="drawingWidth"></param>
         /// <param name="xOffset"></param>
         /// <param name="yOffset"></param>
         /// <param name="scale"></param>
-        private void DrawCurve(RenderTarget g, Pen pen, double[] spectrumData, int pointCount, int drawingWidth, double xOffset, double yOffset, double scale)
+        private void DrawCurve(RenderTarget g, Brush brush, double[] spectrumData, int pointCount, int drawingWidth, double xOffset, double yOffset, double scale)
         {
-            PointF[] points = new PointF[pointCount];
+            RawVector2[] points = new RawVector2[pointCount];
             for (int i = 0; i < pointCount; i++)
             {
                 double x = i * drawingWidth / pointCount + xOffset;
                 double y = spectrumData[i * spectrumData.Length / pointCount] * scale + yOffset;
-                points[i] = new PointF((float)x, (float)y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
-            g.DrawCurve(pen, points);
+            using PathGeometry geo = new PathGeometry(fac);
+            using GeometrySink sink = geo.Open();
+            sink.BeginFigure(points[0], FigureBegin.Filled);
+            for (int i = 1; i < pointCount; i++)
+                sink.AddLine(points[i]);
+            sink.EndFigure(FigureEnd.Open);
+            sink.Close();
+
+            g.DrawGeometry(geo, brush);
         }
 
         private void DrawCircleStrips(RenderTarget g, Brush brush, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
@@ -336,32 +370,38 @@ namespace MusicVisualizerDx
             double rotationAngle = Math.PI / 180 * rotation;
             double blockWidth = MathF.PI * 2 / stripCount;           // angle
             double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
-            PointF[] points = new PointF[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = blockWidth * i + rotationAngle;      // angle
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new PointF((float)x, (float)y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
             for (int i = 0; i < stripCount; i++)
             {
-                PointF p = points[i];
+                RawVector2 p = points[i];
                 double sinStart = Math.Sin(p.X);
                 double sinEnd = Math.Sin(p.X + stripWidth);
                 double cosStart = Math.Cos(p.X);
                 double cosEnd = Math.Cos(p.X + stripWidth);
 
-                PointF[] polygon = new PointF[]
-                {
-                    new PointF((float)(cosStart * radius + xOffset), (float)(sinStart * radius + yOffset)),
-                    new PointF((float)(cosEnd * radius + xOffset), (float)(sinEnd * radius + yOffset)),
-                    new PointF((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset)),
-                    new PointF((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset)),
-                };
+                RawVector2 p0 = new RawVector2((float)(cosStart * radius + xOffset), (float)(sinStart * radius + yOffset));
+                RawVector2 p1 = new RawVector2((float)(cosEnd * radius + xOffset), (float)(sinEnd * radius + yOffset));
+                RawVector2 p2 = new RawVector2((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset));
+                RawVector2 p3 = new RawVector2((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset));
 
-                g.FillPolygon(brush, polygon);
+                using PathGeometry geo = new PathGeometry(fac);
+                using GeometrySink sink = geo.Open();
+                sink.BeginFigure(p0, FigureBegin.Filled);
+                sink.AddLine(p1);
+                sink.AddLine(p2);
+                sink.AddLine(p3);
+                sink.EndFigure(FigureEnd.Closed);
+                sink.Close();
+
+                g.FillGeometry(geo, brush);
             }
         }
 
@@ -378,53 +418,72 @@ namespace MusicVisualizerDx
         /// <param name="radius"></param>
         /// <param name="spacing"></param>
         /// <param name="scale"></param>
-        private void DrawCircleGradientStrips(RenderTarget g, Color inner, Color outer, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
+        private void DrawCircleGradientStrips(RenderTarget g, RawColor4 inner, RawColor4 outer, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
         {
             double rotationAngle = Math.PI / 180 * rotation;
             double blockWidth = Math.PI * 2 / stripCount;           // angle
             double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
-            PointF[] points = new PointF[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = blockWidth * i + rotationAngle;      // angle
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new PointF((float)x, (float)y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
             double maxHeight = points.Max(v =>  v.Y);
             double outerRadius = radius + maxHeight;
 
-            PointF[] polygon = new PointF[4];
+            using GradientStopCollection gradientStopCollection = new GradientStopCollection(rt, new GradientStop[]
+            {
+                new GradientStop() { Position = 0, Color = inner },
+                new GradientStop() { Position = 1, Color = outer }
+            });
+
+            RawVector2[] polygon = new RawVector2[4];
             for (int i = 0; i < stripCount; i++)
             {
-                PointF p = points[i];
+                RawVector2 p = points[i];
                 double sinStart = Math.Sin(p.X);
                 double sinEnd = Math.Sin(p.X + stripWidth);
                 double cosStart = Math.Cos(p.X);
                 double cosEnd = Math.Cos(p.X + stripWidth);
 
-                PointF
-                    p1 = new PointF((float)(cosStart * radius + xOffset),(float)(sinStart * radius + yOffset)),
-                    p2 = new PointF((float)(cosEnd * radius + xOffset),(float)(sinEnd * radius + yOffset)),
-                    p3 = new PointF((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset)),
-                    p4 = new PointF((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset));
+                RawVector2
+                    p0 = new RawVector2((float)(cosStart * radius + xOffset),(float)(sinStart * radius + yOffset)),
+                    p1 = new RawVector2((float)(cosEnd * radius + xOffset),(float)(sinEnd * radius + yOffset)),
+                    p2 = new RawVector2((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset)),
+                    p3 = new RawVector2((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset));
 
-                polygon[0] = p1;
-                polygon[1] = p2;
-                polygon[2] = p3;
-                polygon[3] = p4;
+                polygon[0] = p0;
+                polygon[1] = p1;
+                polygon[2] = p2;
+                polygon[3] = p3;
 
 
-                PointF innerP = new PointF((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
-                PointF outerP = new PointF((p3.X + p4.X) / 2, (p3.Y + p4.Y) / 2);
+                RawVector2 innerP = new RawVector2((p0.X + p1.X) / 2, (p0.Y + p1.Y) / 2);
+                RawVector2 outerP = new RawVector2((p2.X + p3.X) / 2, (p2.Y + p3.Y) / 2);
 
                 Vector2 offset = new Vector2(outerP.X - innerP.X, outerP.Y - innerP.Y);
                 if (MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y) < 3)
                     continue;
 
-                LinearGradientBrush brush = new LinearGradientBrush(innerP, outerP, inner, outer);
-                g.FillPolygon(brush, polygon);
+                using PathGeometry geo = new PathGeometry(fac);
+                using GeometrySink sink = geo.Open();
+                sink.BeginFigure(p0, FigureBegin.Filled);
+                sink.AddLine(p1);
+                sink.AddLine(p2);
+                sink.AddLine(p3);
+                sink.EndFigure(FigureEnd.Closed);
+                sink.Close();
+
+                LinearGradientBrushProperties linearGradientBrushProperties =
+                    new LinearGradientBrushProperties() { StartPoint = innerP, EndPoint = outerP };
+                using LinearGradientBrush brush = new LinearGradientBrush(rt,
+                    linearGradientBrushProperties, gradientStopCollection);
+
+                g.FillGeometry(geo, brush);
 
                 brush.Dispose();
             }
@@ -433,18 +492,18 @@ namespace MusicVisualizerDx
         private void DrawStrips(RenderTarget g, Brush brush, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
         {
             float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
-            PointF[] points = new PointF[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new PointF((float)x, (float)y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
             for (int i = 0; i < stripCount; i++)
             {
-                PointF p = points[i];
+                RawVector2 p = points[i];
                 float y = yOffset;
                 float height = p.Y;
 
@@ -454,39 +513,46 @@ namespace MusicVisualizerDx
                     height = -height;
                 }
 
-                g.FillRectangle(brush, new RectangleF(p.X, y, stripWidth, height));
+                g.FillRectangle(new RawRectangleF(p.X, y, p.X + stripWidth, y + height), brush);
             }
         }
 
-        private void DrawGradientBorder(RenderTarget g, Color inner, Color outer, Rectangle area, double scale, float width)
+        private void DrawGradientBorder(RenderTarget g, RawColor4 inner, RawColor4 outer, RawRectangleF area, double scale, float width)
         {
             int thickness = (int)(width * scale);
             if (thickness < 1)
                 return;
 
-            Rectangle rect = new Rectangle(area.X, area.Y, area.Width, area.Height);
+            RawRectangleF rect = new RawRectangleF(area.Left, area.Top, area.Right, area.Bottom);
 
-            Rectangle up = new Rectangle(rect.Location, new Size(rect.Width, thickness));
-            Rectangle down = new Rectangle(new Point(rect.X, (int)(rect.X + rect.Height - scale * width)), new Size(rect.Width, thickness));
-            Rectangle left = new Rectangle(rect.Location, new Size(thickness, rect.Height));
-            Rectangle right = new Rectangle(new Point((int)(rect.X + rect.Width - scale * width), rect.Y), new Size(thickness, rect.Height));
+            RawRectangleF up = new RawRectangleF(rect.Left, rect.Top, rect.Right, rect.Top + thickness);
+            RawRectangleF down = new RawRectangleF(rect.Left, rect.Bottom - thickness, rect.Right, rect.Bottom);
+            RawRectangleF left = new RawRectangleF(rect.Left, rect.Top, rect.Left + thickness, rect.Bottom);
+            RawRectangleF right = new RawRectangleF(rect.Right - thickness, rect.Top, rect.Right, rect.Bottom);
 
-            LinearGradientBrush upB = new LinearGradientBrush(up, outer, inner, LinearGradientMode.Vertical);
-            LinearGradientBrush downB = new LinearGradientBrush(down, inner, outer, LinearGradientMode.Vertical);
-            LinearGradientBrush leftB = new LinearGradientBrush(left, outer, inner, LinearGradientMode.Horizontal);
-            LinearGradientBrush rightB = new LinearGradientBrush(right, inner, outer, LinearGradientMode.Horizontal);
+            using GradientStopCollection gradientStopCollection = new GradientStopCollection(rt, new GradientStop[]
+            {
+                new GradientStop() { Position = 0, Color = inner },
+                new GradientStop() { Position = 1, Color = outer }
+            });
 
-            upB.WrapMode = downB.WrapMode = leftB.WrapMode = rightB.WrapMode = WrapMode.TileFlipXY;
+            using LinearGradientBrush upB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(up.Left, up.Bottom), EndPoint = new RawVector2(up.Left, up.Top) }, gradientStopCollection);
+            using LinearGradientBrush downB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(down.Left, down.Top), EndPoint = new RawVector2(down.Left, down.Bottom) }, gradientStopCollection);
+            using LinearGradientBrush leftB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(left.Right, left.Top), EndPoint = new RawVector2(left.Left, left.Top) }, gradientStopCollection);
+            using LinearGradientBrush rightB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(right.Left, right.Top), EndPoint = new RawVector2(right.Right, right.Top) }, gradientStopCollection);
 
-            g.FillRectangle(upB, up);
-            g.FillRectangle(downB, down);
-            g.FillRectangle(leftB, left);
-            g.FillRectangle(rightB, right);
+            g.FillRectangle(up, upB);
+            g.FillRectangle(down, downB);
+            g.FillRectangle(left, leftB);
+            g.FillRectangle(right, rightB);
         }
 
         int colorIndex = 0;
         double rotation = 0;
-        BufferedGraphics? oldBuffer;
         private void DrawingTimer_Tick(object? sender, EventArgs e)
         {
             if (spectrumData == null)
@@ -495,45 +561,31 @@ namespace MusicVisualizerDx
             rotation += .1;
             colorIndex++;
 
-            Color color1 = allColors[colorIndex % allColors.Length];
-            Color color2 = allColors[(colorIndex + 200) % allColors.Length];
+            RawColor4 color1 = allColors[colorIndex % allColors.Length];
+            RawColor4 color2 = allColors[(colorIndex + 200) % allColors.Length];
 
             double[] bassArea = TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
             double bassScale = bassArea.Average() * 100;
             double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;
 
-            Rectangle border = new Rectangle(Point.Empty, drawingPanel.Size - new Size(1, 1));
+            RawRectangleF border = new RawRectangleF(0, 0, drawingPanel.Width, drawingPanel.Height);
+            using SolidColorBrush sampleBrush = new SolidColorBrush(rt, new RawColor4(238 / 255f, 130 / 255f, 238 / 255f, 1));
 
-            BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
+            rt.BeginDraw();
+            rt.Clear(new RawColor4(0, 0, 0, 1));
 
-            if (oldBuffer != null)
-            {
-                oldBuffer.Render(buffer.Graphics);
-                oldBuffer.Dispose();
-            }
-
-            using Pen pen = new Pen(Color.Pink);
-            using Brush brush = new SolidBrush(Color.Purple);
-            //using Brush brush1 = new PathGradientBrush()
-
-            //using Brush brush = new SolidBrush(Color.FromArgb(50, drawingPanel.BackColor));
-
-            buffer.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-            buffer.Graphics.Clear(drawingPanel.BackColor);
-            DrawGradientBorder(buffer.Graphics, Color.FromArgb(0, color1), color2, border, bassScale, drawingPanel.Width / 10);
+            DrawGradientBorder(rt, new RawColor4(color1.R, color1.G, color1.B, 0), color2, border, bassScale, drawingPanel.Width / 10);
             //buffer.Graphics.FillRectangle(brush, drawingPanel.ClientRectangle);
 
             //DrawCurve(buffer.Graphics, new Pen(Brushes.Cyan), half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, -100);
             //DrawGradient(buffer.Graphics, Color.Purple, Color.Cyan, half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, -100);
             //DrawStrips(buffer.Graphics, Brushes.Purple, half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -100);
-            DrawGradientStrips(buffer.Graphics, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -drawingPanel.Height * 10);
-            DrawCircleGradientStrips(buffer.Graphics, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width / 2, drawingPanel.Height / 2, MathF.Min(drawingPanel.Width, drawingPanel.Height) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.Width / 6 * 10);
+            DrawGradientStrips(rt, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -drawingPanel.Height * 10);
+            DrawCircleGradientStrips(rt, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width / 2, drawingPanel.Height / 2, MathF.Min(drawingPanel.Width, drawingPanel.Height) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.Width / 6 * 10);
 
-            DrawCurve(buffer.Graphics, pen, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.Width, 0, drawingPanel.Height / 2, MathF.Min(drawingPanel.Height / 10, 100));
+            DrawCurve(rt, sampleBrush, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.Width, 0, drawingPanel.Height / 2, MathF.Min(drawingPanel.Height / 10, 100));
 
-            buffer.Render();
-
-            oldBuffer = buffer;
+            rt.EndDraw();
         }
 
         private void MainWindow_Load(object sender, EventArgs e)

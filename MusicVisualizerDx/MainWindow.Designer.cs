@@ -38,22 +38,34 @@ namespace MusicVisualizerDx
             // 
             // drawingPanel
             // 
-            this.drawingPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.drawingPanel.Location = new System.Drawing.Point(12, 12);
+            this.drawingPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.drawingPanel.Location = new System.Drawing.Point(0, 0);
             this.drawingPanel.Name = "drawingPanel";
-            this.drawingPanel.Size = new System.Drawing.Size(776, 426);
+            this.drawingPanel.Size = new System.Drawing.Size(800, 450);
             this.drawingPanel.TabIndex = 0;
+            // 
+            // dataTimer
+            // 
+            this.dataTimer.Interval = 30;
+            this.dataTimer.Tick += new System.EventHandler(this.DataTimer_Tick);
+            // 
+            // drawingTimer
+            // 
+            this.drawingTimer.Interval = 30;
+            this.drawingTimer.Tick += new System.EventHandler(this.DrawingTimer_Tick);
             // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.Color.Black;
             this.ClientSize = new System.Drawing.Size(800, 450);
             this.Controls.Add(this.drawingPanel);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
             this.Name = "MainWindow";
             this.Text = "Music Visualizer (DX)";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainWindow_FormClosed);
             this.Load += new System.EventHandler(this.MainWindow_Load);
             this.ResumeLayout(false);
 

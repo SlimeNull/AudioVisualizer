@@ -504,7 +504,7 @@ namespace MusicVisualizer
             double bassScale = bassArea.Average() * 100;
             double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;
 
-            Rectangle border = new Rectangle(Point.Empty, drawingPanel.Size - new Size(1, 1));
+            Rectangle border = new Rectangle(Point.Empty, drawingPanel.Size);
 
             BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
 
@@ -553,6 +553,7 @@ namespace MusicVisualizer
         private void drawingPanel_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             WindowState = WindowState != FormWindowState.Maximized ? FormWindowState.Maximized : FormWindowState.Normal;
+            FormBorderStyle = WindowState == FormWindowState.Maximized ? FormBorderStyle.None : FormBorderStyle.Sizable;
         }
     }
 }
