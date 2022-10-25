@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LibMusicVisualizer\LibMusicVisualizer.csproj" />
+    <ProjectReference Include="..\LibAudioVisualizer\LibAudioVisualizer.csproj" />
   </ItemGroup>
 
 </Project>
