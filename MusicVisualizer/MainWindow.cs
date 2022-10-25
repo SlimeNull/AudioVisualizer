@@ -1,9 +1,6 @@
 using LibMusicVisualizer;
 using NAudio.CoreAudioApi;
-using NAudio.Dsp;
 using NAudio.Wave;
-using System;
-using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Numerics;
 
@@ -12,7 +9,7 @@ namespace MusicVisualizer
     public partial class MainWindow : Form
     {
         WasapiCapture capture;             // 音频捕获
-        Visualizer visualizer;             // 可视化
+        AudioVisualizer visualizer;             // 可视化
         double[]? spectrumData;            // 频谱数据
 
         Color[] allColors;                 // 渐变颜色
@@ -20,7 +17,7 @@ namespace MusicVisualizer
         public MainWindow()
         {
             capture = new WasapiLoopbackCapture();          // 捕获电脑发出的声音
-            visualizer = new Visualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
+            visualizer = new AudioVisualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
 
             allColors = GetAllHsvColors();                  // 获取所有的渐变颜色 (HSV 颜色)
 
@@ -28,109 +25,6 @@ namespace MusicVisualizer
             capture.DataAvailable += Capture_DataAvailable;                          // 订阅事件
 
             InitializeComponent();
-        }
-
-        /// <summary>
-        /// 简单的数据模糊
-        /// </summary>
-        /// <param name="data">数据</param>
-        /// <param name="radius">模糊半径</param>
-        /// <returns>结果</returns>
-        private double[] MakeSmooth(double[] data, int radius)
-        {
-            double[] GetWeights(int radius)
-            {
-                double Gaussian(double x) => Math.Pow(Math.E, (-4 * x * x));        // 憨批高斯函数
-
-                int len = 1 + radius * 2;                         // 长度
-                int end = len - 1;                                // 最后的索引
-                double radiusF = (double)radius;                    // 半径浮点数
-                double[] weights = new double[len];                 // 权重
-
-                for (int i = 0; i <= radius; i++)                 // 先把右边的权重算出来
-                    weights[radius + i] = Gaussian(i / radiusF);
-                for (int i = 0; i < radius; i++)                  // 把右边的权重拷贝到左边
-                    weights[i] = weights[end - i];
-
-                double total = weights.Sum();
-                for (int i = 0; i < len; i++)                  // 使权重合为 0
-                    weights[i] = weights[i] / total;
-
-                return weights;
-            }
-
-            void ApplyWeights(double[] buffer, double[] weights)
-            {
-                int len = buffer.Length;
-                for (int i = 0; i < len; i++)
-                    buffer[i] = buffer[i] * weights[i];
-            }
-
-
-            double[] weights = GetWeights(radius);
-            double[] buffer = new double[1 + radius * 2];
-
-            double[] result = new double[data.Length];
-            if (data.Length < radius)
-            {
-                Array.Fill(result, data.Average());
-                return result;
-            }
-
-
-            for (int i = 0; i < radius; i++)
-            {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + 1 + j] = data[i + j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            for (int i = radius; i < data.Length - radius; i++)
-            {
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[j] = data[i - j];
-                }
-
-                buffer[radius] = data[i];
-
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + j + 1] = data[i + j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            for (int i = data.Length - radius; i < data.Length; i++)
-            {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + 1 + j] = data[i - j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            return result;
-        }
-
-        private double[] TakeSpectrumOfFrequency(double[] spectrum, double sampleRate, double frequency)
-        {
-            double frequencyPerSampe = sampleRate / spectrum.Length;
-
-            int lengthInNeed = (int)(Math.Min(frequency / frequencyPerSampe, spectrum.Length));
-            double[] result = new double[lengthInNeed];
-            Array.Copy(spectrum, 0, result, 0, lengthInNeed);
-            return result;
         }
 
         /// <summary>
@@ -198,7 +92,7 @@ namespace MusicVisualizer
         private void DataTimer_Tick(object? sender, EventArgs e)
         {
             double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
-            newSpectrumData = MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
+            newSpectrumData = AudioVisualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
 
             if (spectrumData == null)                                        // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
             {
@@ -416,7 +310,7 @@ namespace MusicVisualizer
 
                 PointF innerP = new PointF((p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
                 PointF outerP = new PointF((p3.X + p4.X) / 2, (p3.Y + p4.Y) / 2);
-                
+
                 Vector2 offset = new Vector2(outerP.X - innerP.X, outerP.Y - innerP.Y);
                 if (MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y) < 3)
                     continue;
@@ -500,13 +394,14 @@ namespace MusicVisualizer
             Color color1 = allColors[colorIndex % allColors.Length];
             Color color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-            double[] bassArea = TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
+            double[] bassArea = AudioVisualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
             double bassScale = bassArea.Average() * 100;
             double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;
 
             Rectangle border = new Rectangle(Point.Empty, drawingPanel.Size);
 
             BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
+            Graphics g = buffer.Graphics;
 
             if (oldBuffer != null)
             {
@@ -516,22 +411,15 @@ namespace MusicVisualizer
 
             using Pen pen = new Pen(Color.Pink);
             using Brush brush = new SolidBrush(Color.Purple);
-            //using Brush brush1 = new PathGradientBrush()
 
-            //using Brush brush = new SolidBrush(Color.FromArgb(50, drawingPanel.BackColor));
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.Clear(drawingPanel.BackColor);
 
-            buffer.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-            buffer.Graphics.Clear(drawingPanel.BackColor);
-            DrawGradientBorder(buffer.Graphics, Color.FromArgb(0, color1), color2, border, bassScale, drawingPanel.Width / 10);
-            //buffer.Graphics.FillRectangle(brush, drawingPanel.ClientRectangle);
+            DrawGradientBorder(g, Color.FromArgb(0, color1), color2, border, bassScale, drawingPanel.Width / 10);
+            DrawGradientStrips(g, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -drawingPanel.Height * 10);
+            DrawCircleGradientStrips(g, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width / 2, drawingPanel.Height / 2, MathF.Min(drawingPanel.Width, drawingPanel.Height) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.Width / 6 * 10);
 
-            //DrawCurve(buffer.Graphics, new Pen(Brushes.Cyan), half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, -100);
-            //DrawGradient(buffer.Graphics, Color.Purple, Color.Cyan, half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, -100);
-            //DrawStrips(buffer.Graphics, Brushes.Purple, half, half.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -100);
-            DrawGradientStrips(buffer.Graphics, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width, 0, drawingPanel.Height, 3, -drawingPanel.Height * 10);
-            DrawCircleGradientStrips(buffer.Graphics, color1, color2, spectrumData, spectrumData.Length, drawingPanel.Width / 2, drawingPanel.Height / 2, MathF.Min(drawingPanel.Width, drawingPanel.Height) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.Width / 6 * 10);
-
-            DrawCurve(buffer.Graphics, pen, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.Width, 0, drawingPanel.Height / 2, MathF.Min(drawingPanel.Height / 10, 100));
+            DrawCurve(g, pen, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.Width, 0, drawingPanel.Height / 2, MathF.Min(drawingPanel.Height / 10, 100));
 
             buffer.Render();
 
@@ -550,7 +438,7 @@ namespace MusicVisualizer
             Environment.Exit(0);
         }
 
-        private void drawingPanel_MouseDoubleClick(object sender, MouseEventArgs e)
+        private void DrawingPanel_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             WindowState = WindowState != FormWindowState.Maximized ? FormWindowState.Maximized : FormWindowState.Normal;
             FormBorderStyle = WindowState == FormWindowState.Maximized ? FormBorderStyle.None : FormBorderStyle.Sizable;

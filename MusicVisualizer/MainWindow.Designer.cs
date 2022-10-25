@@ -46,7 +46,7 @@
             this.drawingPanel.Name = "drawingPanel";
             this.drawingPanel.Size = new System.Drawing.Size(800, 450);
             this.drawingPanel.TabIndex = 0;
-            this.drawingPanel.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.drawingPanel_MouseDoubleClick);
+            this.drawingPanel.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.DrawingPanel_MouseDoubleClick);
             // 
             // drawingTimer
             // 
