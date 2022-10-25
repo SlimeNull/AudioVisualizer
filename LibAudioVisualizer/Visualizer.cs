@@ -2,7 +2,7 @@
 
 namespace LibMusicVisualizer
 {
-    public class AudioVisualizer
+    public class Visualizer
     {
         private int _m;
         private double[] _sampleData;
@@ -12,7 +12,7 @@ namespace LibMusicVisualizer
         /// </summary>
         public double[] SampleData => _sampleData;
 
-        public AudioVisualizer(int waveDataSize)
+        public Visualizer(int waveDataSize)
         {
             if (!(Get2Flag(waveDataSize)))
                 throw new ArgumentException("长度必须是 2 的 n 次幂");

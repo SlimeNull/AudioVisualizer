@@ -28,7 +28,7 @@ namespace WpfMusicVisualizer
     public partial class MainWindow : Window
     {
         WasapiCapture capture;             // 音频捕获
-        AudioVisualizer visualizer;             // 可视化
+        Visualizer visualizer;             // 可视化
         Timer? dataTimer;
         Timer? drawingTimer;
 
@@ -39,7 +39,7 @@ namespace WpfMusicVisualizer
         public MainWindow()
         {
             capture = new WasapiLoopbackCapture();          // 捕获电脑发出的声音
-            visualizer = new AudioVisualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
+            visualizer = new Visualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
 
             allColors = GetAllHsvColors();                  // 获取所有的渐变颜色 (HSV 颜色)
 
@@ -542,7 +542,7 @@ namespace WpfMusicVisualizer
                 Color color1 = allColors[colorIndex % allColors.Length];
                 Color color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-                double[] bassArea = AudioVisualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
+                double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
                 double bassScale = bassArea.Average() * 100;
                 double extraScale = Math.Min(drawingPanel.ActualHeight, drawingPanel.ActualHeight) / 6;
 

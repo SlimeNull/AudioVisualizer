@@ -15,7 +15,7 @@ namespace MusicVisualizerDx
     public partial class MainWindow : Form
     {
         WasapiCapture capture;             // 音频捕获
-        AudioVisualizer visualizer;             // 可视化
+        Visualizer visualizer;             // 可视化
         double[]? spectrumData;            // 频谱数据
 
         RawColor4[] allColors;                 // 渐变颜色
@@ -26,7 +26,7 @@ namespace MusicVisualizerDx
         public MainWindow()
         {
             capture = new WasapiLoopbackCapture();          // 捕获电脑发出的声音
-            visualizer = new AudioVisualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
+            visualizer = new Visualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
 
             allColors = GetAllHsvColors();                  // 获取所有的渐变颜色 (HSV 颜色)
 
@@ -113,7 +113,7 @@ namespace MusicVisualizerDx
         private void DataTimer_Tick(object? sender, EventArgs e)
         {
             double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
-            newSpectrumData = AudioVisualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
+            newSpectrumData = Visualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
 
             if (spectrumData == null)                                        // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
             {
@@ -459,7 +459,7 @@ namespace MusicVisualizerDx
             RawColor4 color1 = allColors[colorIndex % allColors.Length];
             RawColor4 color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-            double[] bassArea = AudioVisualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
+            double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
             double bassScale = bassArea.Average() * 100;
             double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;
 
