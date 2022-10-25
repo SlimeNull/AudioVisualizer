@@ -69,7 +69,7 @@ namespace MusicVisualizer
         }
 
         /// <summary>
-        /// 
+        /// 当捕获有数据的时候, 就怼到可视化器里面
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -223,6 +223,19 @@ namespace MusicVisualizer
             g.DrawCurve(pen, points);
         }
 
+        /// <summary>
+        /// 画简单的圆环线条
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="brush"></param>
+        /// <param name="spectrumData"></param>
+        /// <param name="stripCount"></param>
+        /// <param name="xOffset"></param>
+        /// <param name="yOffset"></param>
+        /// <param name="radius"></param>
+        /// <param name="spacing"></param>
+        /// <param name="rotation"></param>
+        /// <param name="scale"></param>
         private void DrawCircleStrips(Graphics g, Brush brush, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
         {
             double rotationAngle = Math.PI / 180 * rotation;
@@ -258,7 +271,7 @@ namespace MusicVisualizer
         }
 
         /// <summary>
-        /// 画圆环条
+        /// 画圆环渐变条
         /// </summary>
         /// <param name="g"></param>
         /// <param name="inner"></param>
@@ -312,20 +325,30 @@ namespace MusicVisualizer
                 PointF outerP = new PointF((p3.X + p4.X) / 2, (p3.Y + p4.Y) / 2);
 
                 Vector2 offset = new Vector2(outerP.X - innerP.X, outerP.Y - innerP.Y);
-                if (MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y) < 3)
+                if (MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y) < 1)                                // 渐变笔刷两点之间距离不能太小
                     continue;
 
                 try
                 {
-                    LinearGradientBrush brush = new LinearGradientBrush(innerP, outerP, inner, outer);
-                    g.FillPolygon(brush, polygon);
-
-                    brush.Dispose();
+                    using LinearGradientBrush brush = new LinearGradientBrush(innerP, outerP, inner, outer);        // 这里有玄学 bug, 这个 线性笔刷会 OutMemoryException
+                    g.FillPolygon(brush, polygon);                                                            // 但是实际上不应该有这个异常...
                 }
                 catch { }
             }
         }
 
+        /// <summary>
+        /// 画简单的线条
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="brush"></param>
+        /// <param name="spectrumData"></param>
+        /// <param name="stripCount"></param>
+        /// <param name="drawingWidth"></param>
+        /// <param name="xOffset"></param>
+        /// <param name="yOffset"></param>
+        /// <param name="spacing"></param>
+        /// <param name="scale"></param>
         private void DrawStrips(Graphics g, Brush brush, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
         {
             float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
@@ -354,6 +377,15 @@ namespace MusicVisualizer
             }
         }
 
+        /// <summary>
+        /// 画渐变的边框
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="inner"></param>
+        /// <param name="outer"></param>
+        /// <param name="area"></param>
+        /// <param name="scale"></param>
+        /// <param name="width"></param>
         private void DrawGradientBorder(Graphics g, Color inner, Color outer, Rectangle area, double scale, float width)
         {
             int thickness = (int)(width * scale);
@@ -394,25 +426,24 @@ namespace MusicVisualizer
             Color color1 = allColors[colorIndex % allColors.Length];
             Color color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-            double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
-            double bassScale = bassArea.Average() * 100;
-            double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;
+            double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);       // 低频区域
+            double bassScale = bassArea.Average() * 100;                                                                    // 低音导致的缩放 (比例数)
+            double extraScale = Math.Min(drawingPanel.Width, drawingPanel.Height) / 6;                                      // 低音导致的缩放 (乘上窗口大小)
 
             Rectangle border = new Rectangle(Point.Empty, drawingPanel.Size);
 
             BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
             Graphics g = buffer.Graphics;
 
-            if (oldBuffer != null)
-            {
-                oldBuffer.Render(buffer.Graphics);
-                oldBuffer.Dispose();
-            }
+            //if (oldBuffer != null)                        // 如果你想要实现 "留影" 效果, 就取消注释这段代码, 并且将 g.Clear 改为 g.FillRectange(xxx, 半透明的黑色)
+            //{
+            //    oldBuffer.Render(buffer.Graphics);
+            //    oldBuffer.Dispose();
+            //}
 
-            using Pen pen = new Pen(Color.Pink);
-            using Brush brush = new SolidBrush(Color.Purple);
+            using Pen pen = new Pen(Color.Pink);                  // 画音频采样波形用的笔
 
-            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.SmoothingMode = SmoothingMode.HighQuality;          // 嗨嗨害, 那必须得是高质量绘图
             g.Clear(drawingPanel.BackColor);
 
             DrawGradientBorder(g, Color.FromArgb(0, color1), color2, border, bassScale, drawingPanel.Width / 10);
@@ -423,7 +454,7 @@ namespace MusicVisualizer
 
             buffer.Render();
 
-            oldBuffer = buffer;
+            oldBuffer = buffer;                                   // 保存一下 buffer (之所以不全局只使用一个 Buffer 是因为,,, 用户可能调整窗口大小, 所以每一帧都必须适应)
         }
 
         private void MainWindow_Load(object sender, EventArgs e)

@@ -9,7 +9,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WpfAudioVisualizer", "WpfAu
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibAudioVisualizer", "LibAudioVisualizer\LibAudioVisualizer.csproj", "{15A2D4B9-BD52-411F-96E9-2BFACFEC4579}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioVisualizerDx", "AudioVisualizerDx\AudioVisualizerDx.csproj", "{20B17F7E-11C3-4E46-9E79-DE9A3B25B640}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerDx", "AudioVisualizerDx\AudioVisualizerDx.csproj", "{20B17F7E-11C3-4E46-9E79-DE9A3B25B640}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F54E0AE6-96AB-42EA-AFD1-37F1BCBAD304}"
+	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
