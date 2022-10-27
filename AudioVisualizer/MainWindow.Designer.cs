@@ -1,4 +1,4 @@
-﻿namespace MusicVisualizer
+﻿namespace AudioVisualizer
 {
     partial class MainWindow
     {

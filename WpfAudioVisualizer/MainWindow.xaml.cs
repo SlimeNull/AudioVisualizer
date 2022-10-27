@@ -20,7 +20,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
-namespace WpfMusicVisualizer
+namespace WpfAudioVisualizer
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml

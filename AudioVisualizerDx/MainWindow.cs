@@ -1,4 +1,4 @@
-using LibMusicVisualizer;
+using LibAudioVisualizer;
 using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
@@ -10,7 +10,7 @@ using System.Linq;
 using System.Numerics;
 using System.Windows.Forms;
 
-namespace MusicVisualizerDx
+namespace AudioVisualizerDx
 {
     public partial class MainWindow : Form
     {

@@ -4,7 +4,7 @@ using NAudio.Wave;
 using System.Drawing.Drawing2D;
 using System.Numerics;
 
-namespace MusicVisualizer
+namespace AudioVisualizer
 {
     public partial class MainWindow : Form
     {

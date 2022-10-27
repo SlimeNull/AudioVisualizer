@@ -1,4 +1,4 @@
-namespace MusicVisualizer
+namespace AudioVisualizer
 {
     internal static class Program
     {

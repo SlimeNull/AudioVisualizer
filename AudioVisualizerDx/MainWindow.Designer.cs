@@ -1,6 +1,6 @@
 ﻿using System.Windows.Forms;
 
-namespace MusicVisualizerDx
+namespace AudioVisualizerDx
 {
     partial class MainWindow
     {

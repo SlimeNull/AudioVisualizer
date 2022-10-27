@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace MusicVisualizerDx
+namespace AudioVisualizerDx
 {
     internal static class Program
     {
