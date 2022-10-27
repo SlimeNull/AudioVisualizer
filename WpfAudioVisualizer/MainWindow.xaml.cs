@@ -1,4 +1,4 @@
-﻿using LibMusicVisualizer;
+﻿using LibAudioVisualizer;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System;
@@ -560,8 +560,8 @@ namespace WpfMusicVisualizer
         {
             capture.StartRecording();
 
-            dataTimer = new Timer(DataTimer_Tick, null, 30, 30);
-            drawingTimer = new Timer(DrawingTimer_Tick, null, 30, 30);
+            //dataTimer = new Timer(DataTimer_Tick, null, 30, 30);
+            //drawingTimer = new Timer(DrawingTimer_Tick, null, 30, 30);
         }
 
         private void Window_Closed(object sender, EventArgs e)

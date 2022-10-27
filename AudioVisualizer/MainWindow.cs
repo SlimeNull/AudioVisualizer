@@ -435,9 +435,9 @@ namespace MusicVisualizer
             BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
             Graphics g = buffer.Graphics;
 
-            if (oldBuffer != null)                        // 如果你想要实现 "留影" 效果, 就取消注释这段代码, 并且将 g.Clear 改为 g.FillRectange(xxx, 半透明的黑色)
+            if (oldBuffer != null)
             {
-                //oldBuffer.Render(buffer.Graphics);
+                //oldBuffer.Render(buffer.Graphics);      // 如果你想要实现 "留影" 效果, 就取消注释这段代码, 并且将 g.Clear 改为 g.FillRectange(xxx, 半透明的黑色)
                 oldBuffer.Dispose();
             }
 

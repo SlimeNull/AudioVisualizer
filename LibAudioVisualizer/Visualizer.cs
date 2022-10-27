@@ -1,6 +1,6 @@
 ﻿using FftSharp;
 
-namespace LibMusicVisualizer
+namespace LibAudioVisualizer
 {
     public class Visualizer
     {
