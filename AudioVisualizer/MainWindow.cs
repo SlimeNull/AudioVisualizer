@@ -1,4 +1,4 @@
-using LibMusicVisualizer;
+using LibAudioVisualizer;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using System.Drawing.Drawing2D;
@@ -435,11 +435,11 @@ namespace MusicVisualizer
             BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(drawingPanel.CreateGraphics(), drawingPanel.ClientRectangle);
             Graphics g = buffer.Graphics;
 
-            //if (oldBuffer != null)                        // 如果你想要实现 "留影" 效果, 就取消注释这段代码, 并且将 g.Clear 改为 g.FillRectange(xxx, 半透明的黑色)
-            //{
-            //    oldBuffer.Render(buffer.Graphics);
-            //    oldBuffer.Dispose();
-            //}
+            if (oldBuffer != null)                        // 如果你想要实现 "留影" 效果, 就取消注释这段代码, 并且将 g.Clear 改为 g.FillRectange(xxx, 半透明的黑色)
+            {
+                //oldBuffer.Render(buffer.Graphics);
+                oldBuffer.Dispose();
+            }
 
             using Pen pen = new Pen(Color.Pink);                  // 画音频采样波形用的笔
 
