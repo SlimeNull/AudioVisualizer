@@ -1,11 +1,15 @@
-﻿using FftSharp;
+﻿using LibDynamics;
+using FftComplex = FftSharp.Complex;
+using FftTransform = FftSharp.Transform;
 
 namespace LibAudioVisualizer
 {
     public class Visualizer
     {
-        private int _m;
+        //private int _m;
         private double[] _sampleData;
+        private DateTime _lastTime;
+        private SecondOrderDynamicsForArray _dynamics;
 
         /// <summary>
         /// 采样数据
@@ -16,8 +20,10 @@ namespace LibAudioVisualizer
         {
             if (!(Get2Flag(waveDataSize)))
                 throw new ArgumentException("长度必须是 2 的 n 次幂");
-            _m = (int)Math.Log2(waveDataSize);
+            //_m = (int)Math.Log2(waveDataSize);
+            _lastTime = DateTime.Now;
             _sampleData = new double[waveDataSize];
+            _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, waveDataSize / 2);
         }
 
         /// <summary>
@@ -51,24 +57,29 @@ namespace LibAudioVisualizer
         /// <returns></returns>
         public double[] GetSpectrumData()
         {
+            DateTime now = DateTime.Now;
+            double deltaTime = (now - _lastTime).TotalSeconds;
+            _lastTime = now;
+
             int len = _sampleData.Length;
-            Complex[] data = new Complex[len];
+            FftComplex[] data = new FftComplex[len];
 
             for (int i = 0; i < len; i++)
-                data[i] = new Complex(_sampleData[i], 0);
+                data[i] = new FftComplex(_sampleData[i], 0);
 
-            Transform.FFT(data);
+            FftTransform.FFT(data);
 
             int halfLen = len / 2;
-            double[] result = new double[halfLen];           // 傅里叶变换结果左右对称, 只需要取一半
+            double[] spectrum = new double[halfLen];           // 傅里叶变换结果左右对称, 只需要取一半
             for (int i = 0; i < halfLen; i++)
-                result[i] = data[i].Magnitude / len;
+                spectrum[i] = data[i].Magnitude / len;
 
             var window = new FftSharp.Windows.Bartlett();
             window.Create(halfLen);
-            window.ApplyInPlace(result, false);
+            window.ApplyInPlace(spectrum, false);
 
-            return result;
+            //return spectrum;
+            return _dynamics.Update(deltaTime, spectrum);
         }
 
         /// <summary>

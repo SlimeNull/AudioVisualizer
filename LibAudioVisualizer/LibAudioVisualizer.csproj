@@ -10,4 +10,8 @@
     <PackageReference Include="FftSharp" Version="1.1.6" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LibDynamics\LibDynamics.csproj" />
+  </ItemGroup>
+
 </Project>

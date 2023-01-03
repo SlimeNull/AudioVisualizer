@@ -106,7 +106,7 @@ namespace AudioVisualizerDx
         }
 
         /// <summary>
-        /// 用来刷新频谱数据
+        /// 用来刷新频谱数据以及实现频谱数据缓动
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -115,7 +115,19 @@ namespace AudioVisualizerDx
             double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
             newSpectrumData = Visualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
 
-            spectrumData = newSpectrumData;
+            if (spectrumData == null)                                        // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
+            {
+                spectrumData = newSpectrumData;
+                return;
+            }
+
+            for (int i = 0; i < newSpectrumData.Length; i++)                 // 计算旧频谱数据和新频谱数据之间的 "中间值"
+            {
+                double oldData = spectrumData[i];
+                double newData = newSpectrumData[i];
+                double lerpData = oldData + (newData - oldData) * .2f;            // 每一次执行, 频谱值会向目标值移动 20% (如果太大, 缓动效果不明显, 如果太小, 频谱会有延迟的感觉)
+                spectrumData[i] = lerpData;
+            }
         }
 
         /// <summary>

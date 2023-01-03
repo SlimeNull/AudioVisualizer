@@ -16,7 +16,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		readme.md = readme.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioVisualizerGL", "AudioVisualizerGL\AudioVisualizerGL.csproj", "{EC24D98A-2776-400D-8494-7B8C954EAF84}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerGL", "AudioVisualizerGL\AudioVisualizerGL.csproj", "{EC24D98A-2776-400D-8494-7B8C954EAF84}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerDxDesktop", "AudioVisualizerDxDesktop\AudioVisualizerDxDesktop.csproj", "{4398D445-4BE7-4671-83C1-BA7320BEF1EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibDynamics", "LibDynamics\LibDynamics.csproj", "{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,6 +48,14 @@ Global
 		{EC24D98A-2776-400D-8494-7B8C954EAF84}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EC24D98A-2776-400D-8494-7B8C954EAF84}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EC24D98A-2776-400D-8494-7B8C954EAF84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4398D445-4BE7-4671-83C1-BA7320BEF1EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4398D445-4BE7-4671-83C1-BA7320BEF1EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4398D445-4BE7-4671-83C1-BA7320BEF1EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4398D445-4BE7-4671-83C1-BA7320BEF1EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
