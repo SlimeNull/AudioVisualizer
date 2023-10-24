@@ -18,7 +18,24 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Forms;
 using System.Windows.Threading;
+using Timer = System.Windows.Forms.Timer;
+using SharpDX.Direct2D1;
+using SharpDX.Mathematics.Interop;
+using PixelFormat = SharpDX.Direct2D1.PixelFormat;
+using SharpDX;
+using PathGeometry = SharpDX.Direct2D1.PathGeometry;
+using GradientStopCollection = SharpDX.Direct2D1.GradientStopCollection;
+using LinearGradientBrush = SharpDX.Direct2D1.LinearGradientBrush;
+using GradientStop = SharpDX.Direct2D1.GradientStop;
+using SolidColorBrush = SharpDX.Direct2D1.SolidColorBrush;
+using NAudio.Utils;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Runtime.InteropServices;
+using Window = System.Windows.Window;
+using System.Windows.Interop;
+using Application = System.Windows.Application;
 
 namespace WpfAudioVisualizer
 {
@@ -29,12 +46,15 @@ namespace WpfAudioVisualizer
     {
         WasapiCapture capture;             // 音频捕获
         Visualizer visualizer;             // 可视化
-        Timer? dataTimer;
-        Timer? drawingTimer;
-
         double[]? spectrumData;            // 频谱数据
 
-        Color[] allColors;                 // 渐变颜色
+        RawColor4[] allColors;                 // 渐变颜色
+
+        Factory fac;
+        RenderTarget rt;
+
+        Timer dataTimer;
+        Timer drawingTimer;
 
         public MainWindow()
         {
@@ -47,136 +67,65 @@ namespace WpfAudioVisualizer
             capture.DataAvailable += Capture_DataAvailable;                          // 订阅事件
 
             InitializeComponent();
+
+            fac = new Factory();
         }
+
         /// <summary>
-        /// 简单的数据模糊
+        /// 主窗体句柄
         /// </summary>
-        /// <param name="data">数据</param>
-        /// <param name="radius">模糊半径</param>
-        /// <returns>结果</returns>
-        private double[] MakeSmooth(double[] data, int radius)
+        public static System.Windows.Interop.HwndSource Hwnd;
+        /// <summary>
+        /// 获取窗体句柄
+        /// </summary>
+        /// <param name="window">窗体</param>
+        public static IntPtr GetWindowHwndSource(DependencyObject window, bool isHwnd = true)
         {
-            double[] GetWeights(int radius)
-            {
-                double Gaussian(double x) => Math.Pow(Math.E, (-4 * x * x));        // 憨批高斯函数
-
-                int len = 1 + radius * 2;                         // 长度
-                int end = len - 1;                                // 最后的索引
-                double radiusF = (double)radius;                    // 半径浮点数
-                double[] weights = new double[len];                 // 权重
-
-                for (int i = 0; i <= radius; i++)                 // 先把右边的权重算出来
-                    weights[radius + i] = Gaussian(i / radiusF);
-                for (int i = 0; i < radius; i++)                  // 把右边的权重拷贝到左边
-                    weights[i] = weights[end - i];
-
-                double total = weights.Sum();
-                for (int i = 0; i < len; i++)                  // 使权重合为 0
-                    weights[i] = weights[i] / total;
-
-                return weights;
-            }
-
-            void ApplyWeights(double[] buffer, double[] weights)
-            {
-                int len = buffer.Length;
-                for (int i = 0; i < len; i++)
-                    buffer[i] = buffer[i] * weights[i];
-            }
-
-
-            double[] weights = GetWeights(radius);
-            double[] buffer = new double[1 + radius * 2];
-
-            double[] result = new double[data.Length];
-            if (data.Length < radius)
-            {
-                Array.Fill(result, data.Average());
-                return result;
-            }
-
-
-            for (int i = 0; i < radius; i++)
-            {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + 1 + j] = data[i + j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            for (int i = radius; i < data.Length - radius; i++)
-            {
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[j] = data[i - j];
-                }
-
-                buffer[radius] = data[i];
-
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + j + 1] = data[i + j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            for (int i = data.Length - radius; i < data.Length; i++)
-            {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
-                {
-                    buffer[radius + 1 + j] = data[i - j];
-                }
-
-                ApplyWeights(buffer, weights);
-                result[i] = buffer.Sum();
-            }
-
-            return result;
+            var formDependency = System.Windows.Interop.HwndSource.FromDependencyObject(window);
+            System.Windows.Interop.HwndSource winformWindow = (formDependency as System.Windows.Interop.HwndSource);
+            if (isHwnd)
+                Hwnd = winformWindow;
+            return winformWindow.Handle;
         }
+
+
 
         /// <summary>
         /// 获取 HSV 中所有的基础颜色 (饱和度和明度均为最大值)
         /// </summary>
         /// <returns>所有的 HSV 基础颜色(共 256 * 6 个, 并且随着索引增加, 颜色也会渐变)</returns>
-        private Color[] GetAllHsvColors()
+        private RawColor4[] GetAllHsvColors()
         {
-            Color[] result = new Color[256 * 6];
+            RawColor4[] result = new RawColor4[256 * 6];
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[i] = Color.FromArgb(255, 255, (byte)i, 0);
+                result[i] = new RawColor4(1, i / 255f, 0, 1);
             }
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[256 + i] = Color.FromArgb(255, (byte)(255 - i), 255, 0);
+                result[256 + i] = new RawColor4((255 - i) / 255f, 1, 0, 1);
             }
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[512 + i] = Color.FromArgb(255, 0, 255, (byte)i);
+                result[512 + i] = new RawColor4(0, 1, i / 255f, 1);
             }
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[768 + i] = Color.FromArgb(255, 0, (byte)(255 - i), 255);
+                result[768 + i] = new RawColor4(0, (255 - i) / 255f, 1, 1);
             }
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[1024 + i] = Color.FromArgb(255, (byte)i, 0, 255);
+                result[1024 + i] = new RawColor4(i / 255f, 0, 1, 1);
             }
 
-            for (int i = 0; i <= 255; i++)
+            for (int i = 0; i < 256; i++)
             {
-                result[1280 + i] = Color.FromArgb(255, 255, 0, (byte)(255 - i));
+                result[1280 + i] = new RawColor4(1, 0, (255 - i) / 255f, 1);
             }
 
             return result;
@@ -199,28 +148,16 @@ namespace WpfAudioVisualizer
         }
 
         /// <summary>
-        /// 用来刷新频谱数据以及实现频谱数据缓动
+        /// 用来刷新频谱数据
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void DataTimer_Tick(object? state)
+        private void DataTimer_Tick(object? sender, EventArgs e)
         {
             double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
-            newSpectrumData = MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
+            newSpectrumData = Visualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
 
-            if (spectrumData == null)                                        // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
-            {
-                spectrumData = newSpectrumData;
-                return;
-            }
-
-            for (int i = 0; i < newSpectrumData.Length; i++)                 // 计算旧频谱数据和新频谱数据之间的 "中间值"
-            {
-                double oldData = spectrumData[i];
-                double newData = newSpectrumData[i];
-                double lerpData = oldData + (newData - oldData) * .2f;            // 每一次执行, 频谱值会向目标值移动 20% (如果太大, 缓动效果不明显, 如果太小, 频谱会有延迟的感觉)
-                spectrumData[i] = lerpData;
-            }
+            spectrumData = newSpectrumData;
         }
 
         /// <summary>
@@ -235,26 +172,37 @@ namespace WpfAudioVisualizer
         /// <param name="xOffset">波浪的起始X坐标</param>
         /// <param name="yOffset">波浪的其实Y坐标</param>
         /// <param name="scale">频谱的缩放(使用负值可以翻转波浪)</param>
-        private void DrawGradient(Path g, Color down, Color up, double[] spectrumData, int pointCount, double drawingWidth, double xOffset, double yOffset, double scale)
+        private void DrawGradient(RenderTarget g, RawColor4 down, RawColor4 up, double[] spectrumData, int pointCount, int drawingWidth, float xOffset, float yOffset, double scale)
         {
-            Point[] points = new Point[pointCount + 2];
+            RawVector2[] points = new RawVector2[pointCount + 2];
             for (int i = 0; i < pointCount; i++)
             {
                 double x = i * drawingWidth / pointCount + xOffset;
                 double y = spectrumData[i * spectrumData.Length / pointCount] * scale + yOffset;
-                points[i + 1] = new Point(x, y);
+                points[i + 1] = new RawVector2((float)x, (float)y);
             }
 
-            points[0] = new Point(xOffset, yOffset);
-            points[points.Length - 1] = new Point(xOffset + drawingWidth, yOffset);
+            points[0] = new RawVector2(xOffset, yOffset);
+            points[points.Length - 1] = new RawVector2(xOffset + drawingWidth, yOffset);
 
-            double upP = points.Min(v => v.Y);
+            using PathGeometry geo = new PathGeometry(fac);
+            using GeometrySink sink = geo.Open();
+            sink.BeginFigure(points[0], FigureBegin.Filled);
+            for (int i = 1; i < points.Length; i++)
+                sink.AddLine(points[i]);
+            sink.EndFigure(FigureEnd.Closed);
+
+            float upP = (float)points.Min(v => v.Y);
 
             if (Math.Abs(upP - yOffset) < 1)
                 return;
 
-            g.Data = new PathGeometry() { Figures = { new PathFigure() { IsFilled = true, Segments = { new PolyLineSegment(points, false) } } } };
-            g.Fill = new LinearGradientBrush(down, up, new Point(0, yOffset), new Point(0, upP));
+            LinearGradientBrushProperties linearGradientBrushProperties = new LinearGradientBrushProperties() { StartPoint = new RawVector2(0, yOffset), EndPoint = new RawVector2(0, upP) };
+            using GradientStopCollection gradientStopCollection =
+                new GradientStopCollection(rt, new GradientStop[] { new GradientStop() { Position = 0, Color = down }, new GradientStop() { Position = 1, Color = up } });
+            using LinearGradientBrush brush = new LinearGradientBrush(rt, linearGradientBrushProperties, gradientStopCollection);
+
+            g.FillGeometry(geo, brush);
         }
 
         /// <summary>
@@ -270,32 +218,37 @@ namespace WpfAudioVisualizer
         /// <param name="yOffset">绘图的起始 Y 坐标</param>
         /// <param name="spacing">条形与条形之间的间隔(像素)</param>
         /// <param name="scale"></param>
-        private void DrawGradientStrips(Path g, Color down, Color up, double[] spectrumData, int stripCount, double drawingWidth, double xOffset, double yOffset, double spacing, double scale)
+        private void DrawGradientStrips(RenderTarget g, RawColor4 down, RawColor4 up, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
         {
-            double stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
-            Point[] points = new Point[stripCount];
+            float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new Point(x, y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
-            double upP = points.Min(v => v.Y < 0 ? yOffset + v.Y : yOffset);
-            double downP = points.Max(v => v.Y < 0 ? yOffset : yOffset + v.Y);
+            float upP = (float)points.Min(v => v.Y < 0 ? yOffset + v.Y : yOffset);
+            float downP = (float)points.Max(v => v.Y < 0 ? yOffset : yOffset + v.Y);
 
             if (downP < yOffset)
                 downP = yOffset;
 
-            GeometryGroup geo = new GeometryGroup();
-            Brush brush = new LinearGradientBrush(down, up, new Point(0, downP), new Point(0, upP));
+            if (Math.Abs(upP - downP) < 1)
+                return;
+
+            LinearGradientBrushProperties linearGradientBrushProperties = new LinearGradientBrushProperties() { StartPoint = new RawVector2(0, downP), EndPoint = new RawVector2(0, upP) };
+            using GradientStopCollection gradientStopCollection =
+                new GradientStopCollection(rt, new GradientStop[] { new GradientStop() { Position = 0, Color = down }, new GradientStop() { Position = 1, Color = up } });
+            using SharpDX.Direct2D1.Brush brush = new LinearGradientBrush(rt, linearGradientBrushProperties, gradientStopCollection);
 
             for (int i = 0; i < stripCount; i++)
             {
-                Point p = points[i];
-                double y = yOffset;
-                double height = p.Y;
+                RawVector2 p = points[i];
+                float y = yOffset;
+                float height = p.Y;
 
                 if (height < 0)
                 {
@@ -303,25 +256,8 @@ namespace WpfAudioVisualizer
                     height = -height;
                 }
 
-                Point[] endPoints = new Point[]
-                {
-                    new Point(p.X, p.Y),
-                    new Point(p.X, p.Y + height),
-                    new Point(p.X + stripWidth, p.Y + height),
-                    new Point(p.X + stripWidth, p.Y)
-                };
-
-                PathFigure fig = new PathFigure();
-
-                fig.StartPoint = endPoints[0];
-                fig.Segments.Add(new PolyLineSegment(endPoints, false));
-                //fig.IsClosed = true;
-
-                geo.Children.Add(new PathGeometry() { Figures = { fig } });
+                g.FillRectangle(new RawRectangleF(p.X, y, p.X + stripWidth, y + height), brush);
             }
-
-            g.Data = geo;
-            g.Fill = brush;
         }
 
         /// <summary>
@@ -335,65 +271,65 @@ namespace WpfAudioVisualizer
         /// <param name="xOffset"></param>
         /// <param name="yOffset"></param>
         /// <param name="scale"></param>
-        private void DrawCurve(Path g, Brush brush, double[] spectrumData, int pointCount, double drawingWidth, double xOffset, double yOffset, double scale)
+        private void DrawCurve(RenderTarget g, SharpDX.Direct2D1.Brush brush, double[] spectrumData, int pointCount, int drawingWidth, double xOffset, double yOffset, double scale)
         {
-            Point[] points = new Point[pointCount];
+            RawVector2[] points = new RawVector2[pointCount];
             for (int i = 0; i < pointCount; i++)
             {
                 double x = i * drawingWidth / pointCount + xOffset;
                 double y = spectrumData[i * spectrumData.Length / pointCount] * scale + yOffset;
-                points[i] = new Point(x, y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
-            PathFigure fig = new PathFigure();
-            fig.Segments.Add(new PolyLineSegment(points, true));
+            using PathGeometry geo = new PathGeometry(fac);
+            using GeometrySink sink = geo.Open();
+            sink.BeginFigure(points[0], FigureBegin.Filled);
+            for (int i = 1; i < pointCount; i++)
+                sink.AddLine(points[i]);
+            sink.EndFigure(FigureEnd.Open);
+            sink.Close();
 
-            g.Data = new PathGeometry() { Figures = { fig } };
-            g.Stroke = brush;
+            g.DrawGeometry(geo, brush);
         }
 
-        private void DrawCircleStrips(Path g, Brush brush, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
+        private void DrawCircleStrips(RenderTarget g, SharpDX.Direct2D1.Brush brush, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
         {
             double rotationAngle = Math.PI / 180 * rotation;
             double blockWidth = MathF.PI * 2 / stripCount;           // angle
             double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
-            Point[] points = new Point[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = blockWidth * i + rotationAngle;      // angle
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new Point(x, y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
-
-            PathGeometry geo = new PathGeometry();
 
             for (int i = 0; i < stripCount; i++)
             {
-                Point p = points[i];
+                RawVector2 p = points[i];
                 double sinStart = Math.Sin(p.X);
                 double sinEnd = Math.Sin(p.X + stripWidth);
                 double cosStart = Math.Cos(p.X);
                 double cosEnd = Math.Cos(p.X + stripWidth);
 
-                Point[] polygon = new Point[]
-                {
-                    new Point((cosStart * radius + xOffset), (sinStart * radius + yOffset)),
-                    new Point((cosEnd * radius + xOffset), (sinEnd * radius + yOffset)),
-                    new Point((cosEnd * (radius + p.Y) + xOffset), (sinEnd * (radius + p.Y) + yOffset)),
-                    new Point((cosStart * (radius + p.Y) + xOffset), (sinStart * (radius + p.Y) + yOffset)),
-                };
+                RawVector2 p0 = new RawVector2((float)(cosStart * radius + xOffset), (float)(sinStart * radius + yOffset));
+                RawVector2 p1 = new RawVector2((float)(cosEnd * radius + xOffset), (float)(sinEnd * radius + yOffset));
+                RawVector2 p2 = new RawVector2((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset));
+                RawVector2 p3 = new RawVector2((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset));
 
-                PathFigure fig = new PathFigure();
+                using PathGeometry geo = new PathGeometry(fac);
+                using GeometrySink sink = geo.Open();
+                sink.BeginFigure(p0, FigureBegin.Filled);
+                sink.AddLine(p1);
+                sink.AddLine(p2);
+                sink.AddLine(p3);
+                sink.EndFigure(FigureEnd.Closed);
+                sink.Close();
 
-                fig.IsFilled = true;
-                fig.Segments.Add(new PolyLineSegment(polygon, false));
-
-                geo.Figures.Add(fig);
+                g.FillGeometry(geo, brush);
             }
-
-            g.Data = geo;
-            g.Fill = brush;
         }
 
         /// <summary>
@@ -409,76 +345,94 @@ namespace WpfAudioVisualizer
         /// <param name="radius"></param>
         /// <param name="spacing"></param>
         /// <param name="scale"></param>
-        private void DrawCircleGradientStrips(Path g, Color inner, Color outer, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
+        private void DrawCircleGradientStrips(RenderTarget g, RawColor4 inner, RawColor4 outer, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
         {
             double rotationAngle = Math.PI / 180 * rotation;
             double blockWidth = Math.PI * 2 / stripCount;           // angle
             double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
-            Point[] points = new Point[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = blockWidth * i + rotationAngle;      // angle
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new Point(x, y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
 
-            double maxHeight = points.Max(v =>  v.Y);
+            double maxHeight = points.Max(v => v.Y);
             double outerRadius = radius + maxHeight;
 
-            PathGeometry geo = new PathGeometry();
+            using GradientStopCollection gradientStopCollection = new GradientStopCollection(rt, new GradientStop[]
+            {
+                new GradientStop() { Position = 0, Color = inner },
+                new GradientStop() { Position = 1, Color = outer }
+            });
 
+            RawVector2[] polygon = new RawVector2[4];
             for (int i = 0; i < stripCount; i++)
             {
-                Point p = points[i];
+                RawVector2 p = points[i];
                 double sinStart = Math.Sin(p.X);
                 double sinEnd = Math.Sin(p.X + stripWidth);
                 double cosStart = Math.Cos(p.X);
                 double cosEnd = Math.Cos(p.X + stripWidth);
 
-                Point[] polygon = new Point[]
-                {
-                    new Point((cosStart * radius + xOffset),(sinStart * radius + yOffset)),
-                    new Point((cosEnd * radius + xOffset),(sinEnd * radius + yOffset)),
-                    new Point((cosEnd * (radius + p.Y) + xOffset), (sinEnd * (radius + p.Y) + yOffset)),
-                    new Point((cosStart * (radius + p.Y) + xOffset), (sinStart * (radius + p.Y) + yOffset))
-                };
+                RawVector2
+                    p0 = new RawVector2((float)(cosStart * radius + xOffset), (float)(sinStart * radius + yOffset)),
+                    p1 = new RawVector2((float)(cosEnd * radius + xOffset), (float)(sinEnd * radius + yOffset)),
+                    p2 = new RawVector2((float)(cosEnd * (radius + p.Y) + xOffset), (float)(sinEnd * (radius + p.Y) + yOffset)),
+                    p3 = new RawVector2((float)(cosStart * (radius + p.Y) + xOffset), (float)(sinStart * (radius + p.Y) + yOffset));
 
-                PathFigure fig = new PathFigure();
+                polygon[0] = p0;
+                polygon[1] = p1;
+                polygon[2] = p2;
+                polygon[3] = p3;
 
-                fig.IsFilled = true;
-                fig.Segments.Add(new PolyLineSegment(polygon, false));
 
-                geo.Figures.Add(fig);
+                RawVector2 innerP = new RawVector2((p0.X + p1.X) / 2, (p0.Y + p1.Y) / 2);
+                RawVector2 outerP = new RawVector2((p2.X + p3.X) / 2, (p2.Y + p3.Y) / 2);
+
+                Vector2 offset = new Vector2(outerP.X - innerP.X, outerP.Y - innerP.Y);
+                if (MathF.Sqrt(offset.X * offset.X + offset.Y * offset.Y) < 3)
+                    continue;
+
+                using PathGeometry geo = new PathGeometry(fac);
+                using GeometrySink sink = geo.Open();
+                sink.BeginFigure(p0, FigureBegin.Filled);
+                sink.AddLine(p1);
+                sink.AddLine(p2);
+                sink.AddLine(p3);
+                sink.EndFigure(FigureEnd.Closed);
+                sink.Close();
+
+                LinearGradientBrushProperties linearGradientBrushProperties =
+                    new LinearGradientBrushProperties() { StartPoint = innerP, EndPoint = outerP };
+                using LinearGradientBrush brush = new LinearGradientBrush(rt,
+                    linearGradientBrushProperties, gradientStopCollection);
+
+                g.FillGeometry(geo, brush);
+
+                brush.Dispose();
             }
-
-            LinearGradientBrush brush = new LinearGradientBrush(
-                new GradientStopCollection() { new GradientStop(Colors.Transparent, 0), new GradientStop(inner, radius / (radius + maxHeight)), new GradientStop(outer, 1) },
-                new Point(xOffset, yOffset),
-                new Point(xOffset, yOffset + radius + maxHeight));
-            g.Data = geo;
-            g.Fill = brush;
         }
 
-        private void DrawStrips(Path g, Brush brush, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
+        private void DrawStrips(RenderTarget g, SharpDX.Direct2D1.Brush brush, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
         {
             float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
-            Point[] points = new Point[stripCount];
+            RawVector2[] points = new RawVector2[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
                 double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
-                points[i] = new Point(x, y);
+                points[i] = new RawVector2((float)x, (float)y);
             }
-
-            PathGeometry geo = new PathGeometry();
 
             for (int i = 0; i < stripCount; i++)
             {
-                Point p = points[i];
-                double y = yOffset;
-                double height = p.Y;
+                RawVector2 p = points[i];
+                float y = yOffset;
+                float height = p.Y;
 
                 if (height < 0)
                 {
@@ -486,87 +440,153 @@ namespace WpfAudioVisualizer
                     height = -height;
                 }
 
-                Point[] endPoints = new Point[]
-                {
-                    new Point(p.X, y),
-                    new Point(p.X, y + height),
-                    new Point(p.X + stripWidth, y + height),
-                    new Point(p.X + stripWidth, y)
-                };
-
-                PathFigure fig = new PathFigure();
-
-                fig.IsFilled = true;
-                fig.Segments.Add(new PolyLineSegment(endPoints, false));
-
-                geo.Figures.Add(fig);
+                g.FillRectangle(new RawRectangleF(p.X, y, p.X + stripWidth, y + height), brush);
             }
-
-            g.Data = geo;
-            g.Fill = brush;
         }
 
-        private void DrawGradientBorder(
-            Rectangle upBorder, Rectangle downBorder, Rectangle leftBorder, Rectangle rightBorder,
-            Color inner, Color outer, double scale, double width)
+        private void DrawGradientBorder(RenderTarget g, RawColor4 inner, RawColor4 outer, RawRectangleF area, double scale, float width)
         {
             int thickness = (int)(width * scale);
 
-            upBorder.Height = thickness;
-            downBorder.Height = thickness;
-            leftBorder.Width = thickness;
-            rightBorder.Width = thickness;
+            RawRectangleF rect = new RawRectangleF(area.Left, area.Top, area.Right, area.Bottom);
 
-            upBorder.Fill = new LinearGradientBrush(outer, inner, 90);
-            downBorder.Fill = new LinearGradientBrush(inner, outer, 90);
-            leftBorder.Fill = new LinearGradientBrush(outer, inner, 0);
-            rightBorder.Fill = new LinearGradientBrush(inner, outer, 0);
+            RawRectangleF up = new RawRectangleF(rect.Left, rect.Top, rect.Right, rect.Top + thickness);
+            RawRectangleF down = new RawRectangleF(rect.Left, rect.Bottom - thickness, rect.Right, rect.Bottom);
+            RawRectangleF left = new RawRectangleF(rect.Left, rect.Top, rect.Left + thickness, rect.Bottom);
+            RawRectangleF right = new RawRectangleF(rect.Right - thickness, rect.Top, rect.Right, rect.Bottom);
+
+            using GradientStopCollection gradientStopCollection = new GradientStopCollection(rt, new GradientStop[]
+            {
+                new GradientStop() { Position = 0, Color = inner },
+                new GradientStop() { Position = 1, Color = outer }
+            });
+
+            using LinearGradientBrush upB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(up.Left, up.Bottom), EndPoint = new RawVector2(up.Left, up.Top) }, gradientStopCollection);
+            using LinearGradientBrush downB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(down.Left, down.Top), EndPoint = new RawVector2(down.Left, down.Bottom) }, gradientStopCollection);
+            using LinearGradientBrush leftB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(left.Right, left.Top), EndPoint = new RawVector2(left.Left, left.Top) }, gradientStopCollection);
+            using LinearGradientBrush rightB = new LinearGradientBrush(rt,
+                new LinearGradientBrushProperties() { StartPoint = new RawVector2(right.Left, right.Top), EndPoint = new RawVector2(right.Right, right.Top) }, gradientStopCollection);
+
+            g.FillRectangle(up, upB);
+            g.FillRectangle(down, downB);
+            g.FillRectangle(left, leftB);
+            g.FillRectangle(right, rightB);
         }
 
         int colorIndex = 0;
         double rotation = 0;
-        DispatcherOperation? lastInvocation;
-        private void DrawingTimer_Tick(object? state)
+        private void DrawingTimer_Tick(object? sender, EventArgs e)
         {
             if (spectrumData == null)
                 return;
-            if (lastInvocation != null && 
-                lastInvocation.Status == DispatcherOperationStatus.Executing)
-                return;
 
-            lastInvocation = Dispatcher.InvokeAsync(() =>
-            {
-                rotation += .1;
-                colorIndex++;
+            rotation += .1;
+            colorIndex++;
 
-                Color color1 = allColors[colorIndex % allColors.Length];
-                Color color2 = allColors[(colorIndex + 200) % allColors.Length];
+            RawColor4 color1 = allColors[colorIndex % allColors.Length];
+            RawColor4 color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-                double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
-                double bassScale = bassArea.Average() * 100;
-                double extraScale = Math.Min(drawingPanel.ActualHeight, drawingPanel.ActualHeight) / 6;
+            double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
+            double bassScale = bassArea.Average() * 100;
+            double extraScale = Math.Min(this.Width, this.Height) / 6;
 
-                Brush brush = new SolidColorBrush(Colors.Purple);
-                DrawGradientBorder(up, down, left, right, Color.FromArgb(0, color1.R, color1.G, color1.B), color2, bassScale, drawingPanel.ActualWidth / 10);
+            RawRectangleF border = new RawRectangleF(0, 0, (float)this.Width, (float)this.Height);
+            using SolidColorBrush sampleBrush = new SolidColorBrush(rt, new RawColor4(238 / 255f, 130 / 255f, 238 / 255f, 1));
 
-                DrawGradientStrips(strips, color1, color2, spectrumData, spectrumData.Length, strips.ActualWidth, 0, strips.ActualHeight, 3, -strips.ActualHeight * 10);
-                DrawCircleGradientStrips(circle, color1, color2, spectrumData, spectrumData.Length, drawingPanel.ActualHeight / 2, drawingPanel.ActualHeight / 2, Math.Min(drawingPanel.ActualHeight, drawingPanel.ActualHeight) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.ActualHeight / 6 * 10);
+            rt.BeginDraw();
 
-                DrawCurve(sampleWave, brush, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.ActualWidth, 0, drawingPanel.ActualHeight / 2, Math.Min(drawingPanel.ActualHeight / 10, 100));
-            });
+            rt.Clear(new RawColor4(0, 0, 0, 0));
+            //rt.FillRectangle(border, new SolidColorBrush(rt, new RawColor4(0, 0, 0, 0.1f)));
+
+            DrawGradientBorder(rt, new RawColor4(color1.R, color1.G, color1.B, 0), color2, border, bassScale, (float)(this.Width / 10));
+
+            DrawGradientStrips(rt, color1, color2, spectrumData, spectrumData.Length, (int)this.Width, 0, (float)this.Height, 3, -this.Height * 10);
+            DrawCircleGradientStrips(rt, color1, color2, spectrumData, spectrumData.Length, this.Width / 2, this.Height / 2, MathF.Min((float)this.Width, (float)this.Height) / 4 + extraScale * bassScale, 1, rotation, this.Width / 6 * 10);
+
+            DrawCurve(rt, sampleBrush, visualizer.SampleData, visualizer.SampleData.Length, (int)this.Width, 0, this.Height / 2, MathF.Min((float)(this.Height / 10), 100));
+
+            rt.EndDraw();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            capture.StartRecording();
+            var dpiScale = VisualTreeHelper.GetDpi(Application.Current.MainWindow);
+            float dpiX = (float)dpiScale.DpiScaleX;
+            float dpiY = (float)dpiScale.DpiScaleY;
 
-            //dataTimer = new Timer(DataTimer_Tick, null, 30, 30);
-            //drawingTimer = new Timer(DrawingTimer_Tick, null, 30, 30);
+            rt = new WindowRenderTarget(fac,
+                new RenderTargetProperties(
+                    new PixelFormat(SharpDX.DXGI.Format.R8G8B8A8_UNorm, AlphaMode.Premultiplied)),
+                new HwndRenderTargetProperties()
+                {
+                    Hwnd = new WindowInteropHelper(this).Handle,
+                    PixelSize = new Size2((int)(this.Width * dpiX), (int)(this.Height * dpiY)),
+                    PresentOptions = PresentOptions.None,
+                });
+            rt.Transform = new RawMatrix3x2()
+            {
+                M11 = dpiX,
+                M12 = 0.0f,
+                M21 = 0.0f,
+                M22 = dpiY,
+                M31 = 0.0f,
+                M32 = 0.0f
+            };
+
+            if (capture.CaptureState != CaptureState.Starting)
+                capture.StartRecording();
+
+            dataTimer = new Timer();
+            dataTimer.Tick += DataTimer_Tick;
+            dataTimer.Interval = 30;
+            dataTimer.Start();
+            drawingTimer = new Timer();
+            drawingTimer.Tick += DrawingTimer_Tick;
+            drawingTimer.Interval = 30;
+            drawingTimer.Start();
         }
 
-        private void Window_Closed(object sender, EventArgs e)
+        private void MainWindow_FormClosed(object sender, EventArgs e)
         {
             Environment.Exit(0);
+        }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var dpiScale = VisualTreeHelper.GetDpi(Application.Current.MainWindow);
+            float dpiX = (float)dpiScale.DpiScaleX;
+            float dpiY = (float)dpiScale.DpiScaleY;
+
+            rt = new WindowRenderTarget(fac,
+                new RenderTargetProperties(
+                    new PixelFormat(SharpDX.DXGI.Format.R8G8B8A8_UNorm, AlphaMode.Premultiplied)),
+                new HwndRenderTargetProperties()
+                {
+                    Hwnd = new WindowInteropHelper(this).Handle,
+                    PixelSize = new Size2((int)(this.Width * dpiX), (int)(this.Height * dpiY)),
+                    PresentOptions = PresentOptions.None,
+                });
+            rt.Transform = new RawMatrix3x2()
+            {
+                M11 = dpiX,
+                M12 = 0.0f,
+                M21 = 0.0f,
+                M22 = dpiY,
+                M31 = 0.0f,
+                M32 = 0.0f
+            };
+
+            dataTimer = new Timer();
+            dataTimer.Tick += DataTimer_Tick;
+            dataTimer.Interval = 30;
+            dataTimer.Start();
+            drawingTimer = new Timer();
+            drawingTimer.Tick += DrawingTimer_Tick;
+            drawingTimer.Interval = 30;
+            drawingTimer.Start();
         }
     }
 }
