@@ -1,24 +1,13 @@
-﻿using LibAudioVisualizer;
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using LibAudioVisualizer;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
 
 namespace WpfAudioVisualizer
 {
@@ -27,27 +16,29 @@ namespace WpfAudioVisualizer
     /// </summary>
     public partial class MainWindow : Window
     {
-        WasapiCapture capture;             // 音频捕获
-        Visualizer visualizer;             // 可视化
+        WasapiCapture capture; // 音频捕获
+        Visualizer visualizer; // 可视化
         Timer? dataTimer;
         Timer? drawingTimer;
 
-        double[]? spectrumData;            // 频谱数据
+        double[]? spectrumData; // 频谱数据
 
-        Color[] allColors;                 // 渐变颜色
+        Color[] allColors; // 渐变颜色
 
         public MainWindow()
         {
-            capture = new WasapiLoopbackCapture();          // 捕获电脑发出的声音
-            visualizer = new Visualizer(256);               // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
+            capture = new WasapiLoopbackCapture(); // 捕获电脑发出的声音
+            visualizer = new Visualizer(256); // 新建一个可视化器, 并使用 256 个采样进行傅里叶变换
 
-            allColors = GetAllHsvColors();                  // 获取所有的渐变颜色 (HSV 颜色)
+            allColors = GetAllHsvColors(); // 获取所有的渐变颜色 (HSV 颜色)
 
-            capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(8192, 1);      // 指定捕获的格式, 单声道, 32位深度, IeeeFloat 编码, 8192采样率
-            capture.DataAvailable += Capture_DataAvailable;                          // 订阅事件
+            capture.WaveFormat =
+                WaveFormat.CreateIeeeFloatWaveFormat(8192, 1); // 指定捕获的格式, 单声道, 32位深度, IeeeFloat 编码, 8192采样率
+            capture.DataAvailable += Capture_DataAvailable; // 订阅事件
 
             InitializeComponent();
         }
+
         /// <summary>
         /// 简单的数据模糊
         /// </summary>
@@ -58,20 +49,20 @@ namespace WpfAudioVisualizer
         {
             double[] GetWeights(int radius)
             {
-                double Gaussian(double x) => Math.Pow(Math.E, (-4 * x * x));        // 憨批高斯函数
+                double Gaussian(double x) => Math.Pow(Math.E, (-4 * x * x)); // 憨批高斯函数
 
-                int len = 1 + radius * 2;                         // 长度
-                int end = len - 1;                                // 最后的索引
-                double radiusF = (double)radius;                    // 半径浮点数
-                double[] weights = new double[len];                 // 权重
+                int len = 1 + radius * 2; // 长度
+                int end = len - 1; // 最后的索引
+                double radiusF = (double)radius; // 半径浮点数
+                double[] weights = new double[len]; // 权重
 
-                for (int i = 0; i <= radius; i++)                 // 先把右边的权重算出来
+                for (int i = 0; i <= radius; i++) // 先把右边的权重算出来
                     weights[radius + i] = Gaussian(i / radiusF);
-                for (int i = 0; i < radius; i++)                  // 把右边的权重拷贝到左边
+                for (int i = 0; i < radius; i++) // 把右边的权重拷贝到左边
                     weights[i] = weights[end - i];
 
                 double total = weights.Sum();
-                for (int i = 0; i < len; i++)                  // 使权重合为 0
+                for (int i = 0; i < len; i++) // 使权重合为 0
                     weights[i] = weights[i] / total;
 
                 return weights;
@@ -98,8 +89,8 @@ namespace WpfAudioVisualizer
 
             for (int i = 0; i < radius; i++)
             {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
+                Array.Fill(buffer, data[i], 0, radius + 1); // 填充缺省
+                for (int j = 0; j < radius; j++) // 
                 {
                     buffer[radius + 1 + j] = data[i + j];
                 }
@@ -110,14 +101,14 @@ namespace WpfAudioVisualizer
 
             for (int i = radius; i < data.Length - radius; i++)
             {
-                for (int j = 0; j < radius; j++)                 // 
+                for (int j = 0; j < radius; j++) // 
                 {
                     buffer[j] = data[i - j];
                 }
 
                 buffer[radius] = data[i];
 
-                for (int j = 0; j < radius; j++)                 // 
+                for (int j = 0; j < radius; j++) // 
                 {
                     buffer[radius + j + 1] = data[i + j];
                 }
@@ -128,8 +119,8 @@ namespace WpfAudioVisualizer
 
             for (int i = data.Length - radius; i < data.Length; i++)
             {
-                Array.Fill(buffer, data[i], 0, radius + 1);      // 填充缺省
-                for (int j = 0; j < radius; j++)                 // 
+                Array.Fill(buffer, data[i], 0, radius + 1); // 填充缺省
+                for (int j = 0; j < radius; j++) // 
                 {
                     buffer[radius + 1 + j] = data[i - j];
                 }
@@ -189,13 +180,13 @@ namespace WpfAudioVisualizer
         /// <param name="e"></param>
         private void Capture_DataAvailable(object? sender, WaveInEventArgs e)
         {
-            int length = e.BytesRecorded / 4;           // 采样的数量 (每一个采样是 4 字节)
-            double[] result = new double[length];       // 声明结果
+            int length = e.BytesRecorded / 4; // 采样的数量 (每一个采样是 4 字节)
+            double[] result = new double[length]; // 声明结果
 
             for (int i = 0; i < length; i++)
-                result[i] = BitConverter.ToSingle(e.Buffer, i * 4);      // 取出采样值
+                result[i] = BitConverter.ToSingle(e.Buffer, i * 4); // 取出采样值
 
-            visualizer.PushSampleData(result);          // 将新的采样存储到 可视化器 中
+            visualizer.PushSampleData(result); // 将新的采样存储到 可视化器 中
         }
 
         /// <summary>
@@ -205,20 +196,21 @@ namespace WpfAudioVisualizer
         /// <param name="e"></param>
         private void DataTimer_Tick(object? state)
         {
-            double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
-            newSpectrumData = MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
+            double[] newSpectrumData = visualizer.GetSpectrumData(); // 从可视化器中获取频谱数据
+            newSpectrumData = MakeSmooth(newSpectrumData, 2); // 平滑频谱数据
 
-            if (spectrumData == null)                                        // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
+            if (spectrumData == null) // 如果已经存储的频谱数据为空, 则把新的频谱数据直接赋值上去
             {
                 spectrumData = newSpectrumData;
                 return;
             }
 
-            for (int i = 0; i < newSpectrumData.Length; i++)                 // 计算旧频谱数据和新频谱数据之间的 "中间值"
+            for (int i = 0; i < newSpectrumData.Length; i++) // 计算旧频谱数据和新频谱数据之间的 "中间值"
             {
                 double oldData = spectrumData[i];
                 double newData = newSpectrumData[i];
-                double lerpData = oldData + (newData - oldData) * .2f;            // 每一次执行, 频谱值会向目标值移动 20% (如果太大, 缓动效果不明显, 如果太小, 频谱会有延迟的感觉)
+                double lerpData =
+                    oldData + (newData - oldData) * .2f; // 每一次执行, 频谱值会向目标值移动 20% (如果太大, 缓动效果不明显, 如果太小, 频谱会有延迟的感觉)
                 spectrumData[i] = lerpData;
             }
         }
@@ -235,7 +227,8 @@ namespace WpfAudioVisualizer
         /// <param name="xOffset">波浪的起始X坐标</param>
         /// <param name="yOffset">波浪的其实Y坐标</param>
         /// <param name="scale">频谱的缩放(使用负值可以翻转波浪)</param>
-        private void DrawGradient(Path g, Color down, Color up, double[] spectrumData, int pointCount, double drawingWidth, double xOffset, double yOffset, double scale)
+        private void DrawGradient(Path g, Color down, Color up, double[] spectrumData, int pointCount,
+            double drawingWidth, double xOffset, double yOffset, double scale)
         {
             Point[] points = new Point[pointCount + 2];
             for (int i = 0; i < pointCount; i++)
@@ -253,7 +246,10 @@ namespace WpfAudioVisualizer
             if (Math.Abs(upP - yOffset) < 1)
                 return;
 
-            g.Data = new PathGeometry() { Figures = { new PathFigure() { IsFilled = true, Segments = { new PolyLineSegment(points, false) } } } };
+            g.Data = new PathGeometry()
+            {
+                Figures = { new PathFigure() { IsFilled = true, Segments = { new PolyLineSegment(points, false) } } }
+            };
             g.Fill = new LinearGradientBrush(down, up, new Point(0, yOffset), new Point(0, upP));
         }
 
@@ -270,7 +266,8 @@ namespace WpfAudioVisualizer
         /// <param name="yOffset">绘图的起始 Y 坐标</param>
         /// <param name="spacing">条形与条形之间的间隔(像素)</param>
         /// <param name="scale"></param>
-        private void DrawGradientStrips(Path g, Color down, Color up, double[] spectrumData, int stripCount, double drawingWidth, double xOffset, double yOffset, double spacing, double scale)
+        private void DrawGradientStrips(Path g, Color down, Color up, double[] spectrumData, int stripCount,
+            double drawingWidth, double xOffset, double yOffset, double spacing, double scale)
         {
             double stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
             Point[] points = new Point[stripCount];
@@ -278,19 +275,12 @@ namespace WpfAudioVisualizer
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
-                double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
+                double y = spectrumData[i * spectrumData.Length / stripCount] * scale; // height
                 points[i] = new Point(x, y);
             }
 
-            double upP = points.Min(v => v.Y < 0 ? yOffset + v.Y : yOffset);
-            double downP = points.Max(v => v.Y < 0 ? yOffset : yOffset + v.Y);
-
-            if (downP < yOffset)
-                downP = yOffset;
 
             GeometryGroup geo = new GeometryGroup();
-            Brush brush = new LinearGradientBrush(down, up, new Point(0, downP), new Point(0, upP));
-
             for (int i = 0; i < stripCount; i++)
             {
                 Point p = points[i];
@@ -305,10 +295,10 @@ namespace WpfAudioVisualizer
 
                 Point[] endPoints = new Point[]
                 {
-                    new Point(p.X, p.Y),
-                    new Point(p.X, p.Y + height),
-                    new Point(p.X + stripWidth, p.Y + height),
-                    new Point(p.X + stripWidth, p.Y)
+                    new Point(p.X, p.Y + yOffset),
+                    new Point(p.X, p.Y + height + yOffset),
+                    new Point(p.X + stripWidth, p.Y + height + yOffset),
+                    new Point(p.X + stripWidth, p.Y + yOffset)
                 };
 
                 PathFigure fig = new PathFigure();
@@ -317,10 +307,14 @@ namespace WpfAudioVisualizer
                 fig.Segments.Add(new PolyLineSegment(endPoints, false));
                 //fig.IsClosed = true;
 
-                geo.Children.Add(new PathGeometry() { Figures = { fig } });
+                geo.Children.Add(new PathGeometry { Figures = { fig } });
             }
 
             g.Data = geo;
+
+            Brush brush = new LinearGradientBrush(
+                down, up, new Point(0, 0), new Point(0, 1)
+            );
             g.Fill = brush;
         }
 
@@ -335,7 +329,8 @@ namespace WpfAudioVisualizer
         /// <param name="xOffset"></param>
         /// <param name="yOffset"></param>
         /// <param name="scale"></param>
-        private void DrawCurve(Path g, Brush brush, double[] spectrumData, int pointCount, double drawingWidth, double xOffset, double yOffset, double scale)
+        private void DrawCurve(Path g, Brush brush, double[] spectrumData, int pointCount, double drawingWidth,
+            double xOffset, double yOffset, double scale)
         {
             Point[] points = new Point[pointCount];
             for (int i = 0; i < pointCount; i++)
@@ -345,24 +340,29 @@ namespace WpfAudioVisualizer
                 points[i] = new Point(x, y);
             }
 
-            PathFigure fig = new PathFigure();
+            PathFigure fig = new PathFigure
+            {
+                StartPoint = points[0]
+            };
             fig.Segments.Add(new PolyLineSegment(points, true));
 
-            g.Data = new PathGeometry() { Figures = { fig } };
+            g.Data = new PathGeometry { Figures = { fig } };
+            g.StrokeThickness = 2;
             g.Stroke = brush;
         }
 
-        private void DrawCircleStrips(Path g, Brush brush, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
+        private void DrawCircleStrips(Path g, Brush brush, double[] spectrumData, int stripCount, double xOffset,
+            double yOffset, double radius, double spacing, double rotation, double scale)
         {
             double rotationAngle = Math.PI / 180 * rotation;
-            double blockWidth = MathF.PI * 2 / stripCount;           // angle
-            double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
+            double blockWidth = MathF.PI * 2 / stripCount; // angle
+            double stripWidth = blockWidth - MathF.PI / 180 * spacing; // angle
             Point[] points = new Point[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
-                double x = blockWidth * i + rotationAngle;      // angle
-                double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
+                double x = blockWidth * i + rotationAngle; // angle
+                double y = spectrumData[i * spectrumData.Length / stripCount] * scale; // height
                 points[i] = new Point(x, y);
             }
 
@@ -409,22 +409,26 @@ namespace WpfAudioVisualizer
         /// <param name="radius"></param>
         /// <param name="spacing"></param>
         /// <param name="scale"></param>
-        private void DrawCircleGradientStrips(Path g, Color inner, Color outer, double[] spectrumData, int stripCount, double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
+        private void DrawCircleGradientStrips(Path g, Color inner, Color outer, double[] spectrumData, int stripCount,
+            double xOffset, double yOffset, double radius, double spacing, double rotation, double scale)
         {
+            //旋转角度转弧度
             double rotationAngle = Math.PI / 180 * rotation;
-            double blockWidth = Math.PI * 2 / stripCount;           // angle
-            double stripWidth = blockWidth - MathF.PI / 180 * spacing;                // angle
+
+            //等分圆周，每个（竖条+空白）对应的弧度
+            double blockWidth = Math.PI * 2 / stripCount; // angle
+
+            //每个竖条对应的弧度
+            double stripWidth = blockWidth - MathF.PI / 180 * spacing; // angle
+
             Point[] points = new Point[stripCount];
 
             for (int i = 0; i < stripCount; i++)
             {
-                double x = blockWidth * i + rotationAngle;      // angle
-                double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
+                double x = blockWidth * i + rotationAngle; // angle
+                double y = spectrumData[i * spectrumData.Length / stripCount] * scale; // height
                 points[i] = new Point(x, y);
             }
-
-            double maxHeight = points.Max(v =>  v.Y);
-            double outerRadius = radius + maxHeight;
 
             PathGeometry geo = new PathGeometry();
 
@@ -438,29 +442,40 @@ namespace WpfAudioVisualizer
 
                 Point[] polygon = new Point[]
                 {
-                    new Point((cosStart * radius + xOffset),(sinStart * radius + yOffset)),
-                    new Point((cosEnd * radius + xOffset),(sinEnd * radius + yOffset)),
+                    new Point((cosStart * radius + xOffset), (sinStart * radius + yOffset)),
+                    new Point((cosEnd * radius + xOffset), (sinEnd * radius + yOffset)),
                     new Point((cosEnd * (radius + p.Y) + xOffset), (sinEnd * (radius + p.Y) + yOffset)),
                     new Point((cosStart * (radius + p.Y) + xOffset), (sinStart * (radius + p.Y) + yOffset))
                 };
 
-                PathFigure fig = new PathFigure();
+                PathFigure fig = new PathFigure
+                {
+                    StartPoint = polygon[0],
+                    IsFilled = true
+                };
 
-                fig.IsFilled = true;
                 fig.Segments.Add(new PolyLineSegment(polygon, false));
-
                 geo.Figures.Add(fig);
             }
 
-            LinearGradientBrush brush = new LinearGradientBrush(
-                new GradientStopCollection() { new GradientStop(Colors.Transparent, 0), new GradientStop(inner, radius / (radius + maxHeight)), new GradientStop(outer, 1) },
-                new Point(xOffset, yOffset),
-                new Point(xOffset, yOffset + radius + maxHeight));
             g.Data = geo;
+
+            double maxHeight = points.Max(v => v.Y);
+            LinearGradientBrush brush = new LinearGradientBrush(
+                new GradientStopCollection()
+                {
+                    new GradientStop(Colors.Transparent, 0),
+                    new GradientStop(inner, radius / (radius + maxHeight)),
+                    new GradientStop(outer, 1)
+                },
+                new Point(xOffset, 0),
+                new Point(xOffset, 1)
+            );
             g.Fill = brush;
         }
 
-        private void DrawStrips(Path g, Brush brush, double[] spectrumData, int stripCount, int drawingWidth, float xOffset, float yOffset, float spacing, double scale)
+        private void DrawStrips(Path g, Brush brush, double[] spectrumData, int stripCount, int drawingWidth,
+            float xOffset, float yOffset, float spacing, double scale)
         {
             float stripWidth = (drawingWidth - spacing * stripCount) / stripCount;
             Point[] points = new Point[stripCount];
@@ -468,7 +483,7 @@ namespace WpfAudioVisualizer
             for (int i = 0; i < stripCount; i++)
             {
                 double x = stripWidth * i + spacing * i + xOffset;
-                double y = spectrumData[i * spectrumData.Length / stripCount] * scale;   // height
+                double y = spectrumData[i * spectrumData.Length / stripCount] * scale; // height
                 points[i] = new Point(x, y);
             }
 
@@ -526,11 +541,12 @@ namespace WpfAudioVisualizer
         int colorIndex = 0;
         double rotation = 0;
         DispatcherOperation? lastInvocation;
+
         private void DrawingTimer_Tick(object? state)
         {
             if (spectrumData == null)
                 return;
-            if (lastInvocation != null && 
+            if (lastInvocation != null &&
                 lastInvocation.Status == DispatcherOperationStatus.Executing)
                 return;
 
@@ -542,17 +558,40 @@ namespace WpfAudioVisualizer
                 Color color1 = allColors[colorIndex % allColors.Length];
                 Color color2 = allColors[(colorIndex + 200) % allColors.Length];
 
-                double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, capture.WaveFormat.SampleRate, 250);
+                //音波曲线
+                Brush brush = new SolidColorBrush(color1);
+                DrawCurve(
+                    sampleWave, brush, visualizer.SampleData, visualizer.SampleData.Length,
+                    drawingPanel.ActualWidth, 0, drawingPanel.ActualHeight / 2,
+                    Math.Min(drawingPanel.ActualHeight / 10, 100)
+                );
+
+                //柱状音波频谱
+                DrawGradientStrips(
+                    strips, color1, color2,
+                    spectrumData, spectrumData.Length,
+                    strips.ActualWidth, 0, strips.ActualHeight,
+                    3, -strips.ActualHeight * 10
+                );
+
+                //圆形音波频谱
+                double[] bassArea = Visualizer.TakeSpectrumOfFrequency(
+                    spectrumData, capture.WaveFormat.SampleRate, 250
+                );
                 double bassScale = bassArea.Average() * 100;
                 double extraScale = Math.Min(drawingPanel.ActualHeight, drawingPanel.ActualHeight) / 6;
+                DrawCircleGradientStrips(
+                    circle, color1, color2, spectrumData, spectrumData.Length,
+                    drawingPanel.ActualWidth / 2, drawingPanel.ActualHeight / 2,
+                    Math.Min(drawingPanel.ActualWidth, drawingPanel.ActualHeight) / 4 + extraScale * bassScale,
+                    1, rotation, drawingPanel.ActualHeight / 6 * 10
+                );
 
-                Brush brush = new SolidColorBrush(Colors.Purple);
-                DrawGradientBorder(up, down, left, right, Color.FromArgb(0, color1.R, color1.G, color1.B), color2, bassScale, drawingPanel.ActualWidth / 10);
-
-                DrawGradientStrips(strips, color1, color2, spectrumData, spectrumData.Length, strips.ActualWidth, 0, strips.ActualHeight, 3, -strips.ActualHeight * 10);
-                DrawCircleGradientStrips(circle, color1, color2, spectrumData, spectrumData.Length, drawingPanel.ActualHeight / 2, drawingPanel.ActualHeight / 2, Math.Min(drawingPanel.ActualHeight, drawingPanel.ActualHeight) / 4 + extraScale * bassScale, 1, rotation, drawingPanel.ActualHeight / 6 * 10);
-
-                DrawCurve(sampleWave, brush, visualizer.SampleData, visualizer.SampleData.Length, drawingPanel.ActualWidth, 0, drawingPanel.ActualHeight / 2, Math.Min(drawingPanel.ActualHeight / 10, 100));
+                //四周边框
+                DrawGradientBorder(
+                    up, down, left, right, Color.FromArgb(0, color1.R, color1.G, color1.B), color2, bassScale,
+                    drawingPanel.ActualWidth / 10
+                );
             });
         }
 
@@ -560,8 +599,8 @@ namespace WpfAudioVisualizer
         {
             capture.StartRecording();
 
-            //dataTimer = new Timer(DataTimer_Tick, null, 30, 30);
-            //drawingTimer = new Timer(DrawingTimer_Tick, null, 30, 30);
+            dataTimer = new Timer(DataTimer_Tick, null, 30, 30);
+            drawingTimer = new Timer(DrawingTimer_Tick, null, 30, 30);
         }
 
         private void Window_Closed(object sender, EventArgs e)
