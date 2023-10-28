@@ -1,37 +1,37 @@
-# ÒôÆµ¿ÉÊÓ»¯Æ÷ / AudioVisualizer
+# éŸ³é¢‘å¯è§†åŒ–å™¨ / AudioVisualizer
 
-·Ö±ğÔÚ GDI+ ºÍ Direct2D(SharpDX) ÉÏÊµÏÖÁËÒôÆµ¿ÉÊÓ»¯ \
+åˆ†åˆ«åœ¨ GDI+ å’Œ Direct2D(SharpDX) ä¸Šå®ç°äº†éŸ³é¢‘å¯è§†åŒ– \
 Audio visualization on GDI+ and Direct2D (SharpDX) respectively
 
-Äã¿ÉÒÔÑ§µ½: ÈçºÎÊµÏÖÒôÆµ¿ÉÊÓ»¯, ÈçºÎÊ¹ÓÃ SharpDX ½øĞĞ 2D »æÍ¼ \
+ä½ å¯ä»¥å­¦åˆ°: å¦‚ä½•å®ç°éŸ³é¢‘å¯è§†åŒ–, å¦‚ä½•ä½¿ç”¨ SharpDX è¿›è¡Œ 2D ç»˜å›¾ \
 You can learn: how to implement audio visualization, how to use SharpDX for 2D drawing
 
 ![preview](res/preview1.png)
 
-## Ö÷ÒªÂß¼­ / Main logic
+## ä¸»è¦é€»è¾‘ / Main logic
 
-### ÒôÆµ¿ÉÊÓ»¯ / Audio visualization
+### éŸ³é¢‘å¯è§†åŒ– / Audio visualization
 
-- Ã¿Ò»Ö¡¶Ô¾ÉÊı¾İºÍĞÂÊı¾İ½øĞĞ "½¥±ä", Öµ²»»áÁ¢¼´¸üĞÂÎªĞÂÖµ, ¶øÊÇ¸üĞÂÎªÁ½ÖµµÄÖĞ¼äÖµ, Ò²¾ÍÊÇËµ, Ã¿Ò»´ÎË¢ĞÂ, Êı¾İÖ»»á "ÒÆ¶¯" Ò»¶¨±ÈÀı \
+- æ¯ä¸€å¸§å¯¹æ—§æ•°æ®å’Œæ–°æ•°æ®è¿›è¡Œ "æ¸å˜", å€¼ä¸ä¼šç«‹å³æ›´æ–°ä¸ºæ–°å€¼, è€Œæ˜¯æ›´æ–°ä¸ºä¸¤å€¼çš„ä¸­é—´å€¼, ä¹Ÿå°±æ˜¯è¯´, æ¯ä¸€æ¬¡åˆ·æ–°, æ•°æ®åªä¼š "ç§»åŠ¨" ä¸€å®šæ¯”ä¾‹ \
   Each frame do lerp operation between the old data and the new data, the value is not updated to the new value immediately, but is updated to the intermediate value of the two values, that is, each refresh, the data will only "move" a certain percentage
-- ¼Ó¸ö´°º¯Êı, ÕÚ¸Ç×¡µÍÆµÓë¸ßÆµ, Ö÷ÒªÕ¹Ê¾ÖĞ¼äÆµÂÊ \
+- åŠ ä¸ªçª—å‡½æ•°, é®ç›–ä½ä½é¢‘ä¸é«˜é¢‘, ä¸»è¦å±•ç¤ºä¸­é—´é¢‘ç‡ \
   Add a window function to cover the low frequency and high frequency, mainly showing the middle frequency
-- ½«µÍÆµÇøÓòµÄÖµÈ¡³öÀ´, µ¥¶ÀÓÃÀ´×ö "µÍÒô" µÄÊÓ¾õĞ§¹û \
+- å°†ä½é¢‘åŒºåŸŸçš„å€¼å–å‡ºæ¥, å•ç‹¬ç”¨æ¥åš "ä½éŸ³" çš„è§†è§‰æ•ˆæœ \
   Take out the value of the low-frequency area and use it separately for the visual effect of "bass"
 
 ### WinForm
 
-- Ê¹ÓÃ WinForm µÄ Timer ÊµÏÖÔÚµ¥Ïß³ÌµÄ¶¨Ê±ÆµÆ×Êı¾İ»ñÈ¡ÒÔ¼°½çÃæË¢ĞÂ \
+- ä½¿ç”¨ WinForm çš„ Timer å®ç°åœ¨å•çº¿ç¨‹çš„å®šæ—¶é¢‘è°±æ•°æ®è·å–ä»¥åŠç•Œé¢åˆ·æ–° \
   Using WinForm's Timer to achieve timed spectrum data acquisition and interface refresh in a single thread
 
 ### GDI+
 
-- Ê¹ÓÃ BufferedGraphics Ê¹»æÖÆÊ±²»»áÉÁÆÁ \
+- ä½¿ç”¨ BufferedGraphics ä½¿ç»˜åˆ¶æ—¶ä¸ä¼šé—ªå± \
   Use BufferedGraphics to draw without flickering
 
 ## Enjoy
 
-´úÂë×¢ÊÍºÜÍêÉÆ, ËùÒÔ, Ñ§ÆğÀ´Ñ½~ \
+ä»£ç æ³¨é‡Šå¾ˆå®Œå–„, æ‰€ä»¥, å­¦èµ·æ¥å‘€~ \
 The code comments are very perfect, so let's just learn it~
 
 ![code](res/code.png)

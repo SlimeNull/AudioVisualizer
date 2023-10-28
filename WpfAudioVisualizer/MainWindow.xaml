@@ -4,7 +4,6 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfAudioVisualizer"
-        PreviewMouseMove="Window_PreviewMouseMove"
         mc:Ignorable="d" Background="Black"
         d:DataContext="{d:DesignInstance Type=local:MainWindow}"
         Loaded="Window_Loaded" Closed="Window_Closed"
@@ -14,10 +13,5 @@
                                  SpectrumBlurry="0"
                                  StripSpacing=".5"
                                  ColorGradientOffset=".1"/>
-        <Button VerticalAlignment="Bottom" 
-                HorizontalAlignment="Right" 
-                Margin="10" Padding="10 5" 
-                Content="Toggle" 
-                Command="{Binding ToggleCommand}"/>
     </Grid>
 </Window>

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizer", "AudioVisualizer\AudioVisualizer.csproj", "{D413F08A-60A2-4617-880C-BF303397AF2C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WpfAudioVisualizer", "WpfAudioVisualizer\WpfAudioVisualizer.csproj", "{459FE289-A8E1-4BEC-9113-FC42B9CE9436}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerWpf", "WpfAudioVisualizer\AudioVisualizerWpf.csproj", "{459FE289-A8E1-4BEC-9113-FC42B9CE9436}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibAudioVisualizer", "LibAudioVisualizer\LibAudioVisualizer.csproj", "{15A2D4B9-BD52-411F-96E9-2BFACFEC4579}"
 EndProject
@@ -20,7 +20,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerGL", "AudioV
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerDxDesktop", "AudioVisualizerDxDesktop\AudioVisualizerDxDesktop.csproj", "{4398D445-4BE7-4671-83C1-BA7320BEF1EE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibDynamics", "LibDynamics\LibDynamics.csproj", "{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibDynamics", "LibDynamics\LibDynamics.csproj", "{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

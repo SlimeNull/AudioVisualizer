@@ -40,11 +40,5 @@ namespace WpfAudioVisualizer
         {
             visualizerControl.RenderEnabled = true;
         }
-
-        private void Window_PreviewMouseMove(object sender, MouseEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-                DragMove();
-        }
     }
 }
