@@ -10,20 +10,39 @@ namespace LibAudioVisualizer
         private double[] _sampleData;
         private DateTime _lastTime;
         private SecondOrderDynamicsForArray _dynamics;
+        private int _size;
 
         /// <summary>
         /// 采样数据
         /// </summary>
         public double[] SampleData => _sampleData;
 
-        public Visualizer(int waveDataSize)
+        /// <summary>
+        /// 尺寸
+        /// </summary>
+        public int Size
         {
-            if (!(Get2Flag(waveDataSize)))
-                throw new ArgumentException("长度必须是 2 的 n 次幂");
-            //_m = (int)Math.Log2(waveDataSize);
+            get => _size; set
+            {
+                if (!(Get2Flag(value)))
+                    throw new ArgumentException("长度必须是 2 的 n 次幂");
+
+                _size = value;
+                _sampleData = new double[value];
+                _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, value / 2);
+            }
+        }
+
+        public int OutputSize => Size / 2;
+
+        public Visualizer(int size)
+        {
+            if (!(Get2Flag(size)))
+                throw new ArgumentException("大小必须是 2 的 n 次幂", nameof(size));
+
             _lastTime = DateTime.Now;
-            _sampleData = new double[waveDataSize];
-            _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, waveDataSize / 2);
+            _sampleData = new double[size];
+            _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, size / 2);
         }
 
         /// <summary>
@@ -105,7 +124,7 @@ namespace LibAudioVisualizer
         /// <param name="data">数据</param>
         /// <param name="radius">模糊半径</param>
         /// <returns>结果</returns>
-        public static double[] MakeSmooth(double[] data, int radius)
+        public static double[] GetBlurry(double[] data, int radius)
         {
             double[] GetWeights(int radius)
             {

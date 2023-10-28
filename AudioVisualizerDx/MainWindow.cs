@@ -113,7 +113,7 @@ namespace AudioVisualizerDx
         private void DataTimer_Tick(object? sender, EventArgs e)
         {
             double[] newSpectrumData = visualizer.GetSpectrumData();         // 从可视化器中获取频谱数据
-            newSpectrumData = Visualizer.MakeSmooth(newSpectrumData, 2);                // 平滑频谱数据
+            newSpectrumData = Visualizer.GetBlurry(newSpectrumData, 2);                // 平滑频谱数据
 
             spectrumData = newSpectrumData;
         }

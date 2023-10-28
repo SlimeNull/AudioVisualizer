@@ -38,10 +38,23 @@ namespace WpfAudioVisualizer
         [RelayCommand]
         public void Toggle()
         {
-            if (visualizerControl.IsRendering)
-                visualizerControl.StopRender();
-            else
-                visualizerControl.BeginRender();
+            visualizerControl.EnableRendering ^= true;
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            visualizerControl.EnableRendering = false;
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            visualizerControl.EnableRendering = true;
+        }
+
+        private void Window_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                DragMove();
         }
     }
 }

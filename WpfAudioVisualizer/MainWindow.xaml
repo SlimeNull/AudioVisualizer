@@ -4,11 +4,20 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfAudioVisualizer"
+        PreviewMouseMove="Window_PreviewMouseMove"
         mc:Ignorable="d" Background="Black"
         d:DataContext="{d:DesignInstance Type=local:MainWindow}"
-        Title="MainWindow" Height="450" Width="800">
+        Loaded="Window_Loaded" Closed="Window_Closed"
+        Title="MainWindow" Height="570" Width="800">
     <Grid>
-        <local:VisualizerControl x:Name="visualizerControl"/>
-        <Button VerticalAlignment="Bottom" HorizontalAlignment="Right" Content="Toggle" Margin="10" Padding="10 5" Command="{Binding ToggleCommand}"/>
+        <local:VisualizerControl x:Name="visualizerControl"
+                                 SpectrumBlurry="0"
+                                 StripSpacing=".5"
+                                 ColorGradientOffset=".1"/>
+        <Button VerticalAlignment="Bottom" 
+                HorizontalAlignment="Right" 
+                Margin="10" Padding="10 5" 
+                Content="Toggle" 
+                Command="{Binding ToggleCommand}"/>
     </Grid>
 </Window>
