@@ -28,17 +28,17 @@ namespace WpfAudioVisualizer
         [RelayCommand]
         public void Toggle()
         {
-            visualizerControl.EnableRendering ^= true;
+            visualizerControl.RenderEnabled ^= true;
         }
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            visualizerControl.EnableRendering = false;
+            visualizerControl.RenderEnabled = false;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            visualizerControl.EnableRendering = true;
+            visualizerControl.RenderEnabled = true;
         }
 
         private void Window_PreviewMouseMove(object sender, MouseEventArgs e)

@@ -70,6 +70,19 @@ namespace LibAudioVisualizer
             }
         }
 
+        public void PushSampleData(double[] waveData, int count)
+        {
+            if (count > _sampleData.Length)
+            {
+                Array.Copy(waveData, count - _sampleData.Length, _sampleData, 0, _sampleData.Length);
+            }
+            else
+            {
+                Array.Copy(_sampleData, count, _sampleData, 0, _sampleData.Length - count);
+                Array.Copy(waveData, 0, _sampleData, _sampleData.Length - count, count);
+            }
+        }
+
         /// <summary>
         /// 获取频谱数据 (数据已经删去共轭部分)
         /// </summary>

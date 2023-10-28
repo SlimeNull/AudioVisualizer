@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -34,6 +35,8 @@ namespace WpfAudioVisualizer
             _capture = new WasapiLoopbackCapture();
             _visualizer = new Visualizer(512);
             _startTime = DateTime.Now;
+            _doubleArrayPool = ArrayPool<double>.Create();
+            _pointArrayPool = ArrayPool<Point>.Create();
 
             _capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(8192, 1);
             _capture.DataAvailable += CaptureDataAvailable;
@@ -49,6 +52,8 @@ namespace WpfAudioVisualizer
         Visualizer _visualizer;
         DateTime _startTime;
         double[]? _spectrumData;
+        ArrayPool<double> _doubleArrayPool;
+        ArrayPool<Point> _pointArrayPool;
 
         static readonly Color[] allColors =
             ColorUtils.GetAllHsvColors();
@@ -59,6 +64,12 @@ namespace WpfAudioVisualizer
         {
             get { return (int)GetValue(SpectrumSizeProperty); }
             set { SetValue(SpectrumSizeProperty, value); }
+        }
+
+        public int SpectrumSampleRate
+        {
+            get { return (int)GetValue(SpectrumSampleRateProperty); }
+            set { SetValue(SpectrumSampleRateProperty, value); }
         }
 
         public int SpectrumBlurry
@@ -82,7 +93,7 @@ namespace WpfAudioVisualizer
             get { return (bool)GetValue(IsRenderingProperty.DependencyProperty); }
             private set { SetValue(IsRenderingProperty, value); }
         }
-        public bool EnableRendering
+        public bool RenderEnabled
         {
             get { return (bool)GetValue(EnableRenderingProperty); }
             set { SetValue(EnableRenderingProperty, value); }
@@ -92,12 +103,6 @@ namespace WpfAudioVisualizer
         {
             get { return (int)GetValue(RenderIntervalProperty); }
             set { SetValue(RenderIntervalProperty, value); }
-        }
-
-        public int RenderMultiple
-        {
-            get { return (int)GetValue(RenderMultipleProperty); }
-            set { SetValue(RenderMultipleProperty, value); }
         }
 
         public float ColorTransitionTime
@@ -124,52 +129,57 @@ namespace WpfAudioVisualizer
             set { SetValue(StripSpacingProperty, value); }
         }
 
-        // Using a DependencyProperty as the backing store for StripSpacing.  This enables animation, styling, binding, etc...
-        public static readonly DependencyProperty StripSpacingProperty =
-            DependencyProperty.Register(nameof(StripSpacing), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.1f));
+        public int CircleStripCount
+        {
+            get { return (int)GetValue(CircleStripCountProperty); }
+            set { SetValue(CircleStripCountProperty, value); }
+        }
+
+        public float CircleStripSpacing
+        {
+            get { return (float)GetValue(CircleStripSpacingProperty); }
+            set { SetValue(CircleStripSpacingProperty, value); }
+        }
+
+        public double CircleStripRotationSpeed
+        {
+            get { return (double)GetValue(CircleStripRotationSpeedProperty); }
+            set { SetValue(CircleStripRotationSpeedProperty, value); }
+        }
 
 
 
-        // Using a DependencyProperty as the backing store for StripCount.  This enables animation, styling, binding, etc...
-        public static readonly DependencyProperty StripCountProperty =
-            DependencyProperty.Register(nameof(StripCount), typeof(int), typeof(VisualizerControl), new PropertyMetadata(128));
-
-
-
-
-
-
-        // Using a DependencyProperty as the backing store for SpectrumSize.  This enables animation, styling, binding, etc...
         public static readonly DependencyProperty SpectrumSizeProperty =
             DependencyProperty.Register(nameof(SpectrumSize), typeof(int), typeof(VisualizerControl), new PropertyMetadata(512, SpectrumSizeChanged));
-
-        // Using a DependencyProperty as the backing store for SpectrumBlurry.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty SpectrumSampleRateProperty =
+            DependencyProperty.Register(nameof(SpectrumSampleRate), typeof(int), typeof(VisualizerControl), new PropertyMetadata(8192, SpectrumSampleRateChanged));
         public static readonly DependencyProperty SpectrumBlurryProperty =
             DependencyProperty.Register(nameof(SpectrumBlurry), typeof(int), typeof(VisualizerControl), new PropertyMetadata(0));
-
-        // Using a DependencyProperty as the backing store for SpectrumFactor.  This enables animation, styling, binding, etc...
         public static readonly DependencyProperty SpectrumFactorProperty =
             DependencyProperty.Register(nameof(SpectrumFactor), typeof(double), typeof(VisualizerControl), new PropertyMetadata(1.0));
-
-        // Using a DependencyProperty as the backing store for IsRendering.  This enables animation, styling, binding, etc...
         public static readonly DependencyPropertyKey IsRenderingProperty =
             DependencyProperty.RegisterReadOnly(nameof(IsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(false));
-
         public static readonly DependencyProperty EnableRenderingProperty =
-            DependencyProperty.Register(nameof(EnableRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(false, EnableRenderingChanged));
-
+            DependencyProperty.Register(nameof(RenderEnabled), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(false, RenderEnableChanged));
         public static readonly DependencyProperty RenderIntervalProperty =
             DependencyProperty.Register(nameof(RenderInterval), typeof(int), typeof(VisualizerControl), new PropertyMetadata(10));
-
-        public static readonly DependencyProperty RenderMultipleProperty =
-            DependencyProperty.Register(nameof(RenderMultiple), typeof(int), typeof(VisualizerControl), new PropertyMetadata(10));
-
         public static readonly DependencyProperty ColorTransitionTimeProperty =
             DependencyProperty.Register(nameof(ColorTransitionTime), typeof(float), typeof(VisualizerControl), new PropertyMetadata(30f));
-
         public static readonly DependencyProperty ColorGradientOffsetProperty =
             DependencyProperty.Register(nameof(ColorGradientOffset), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.1f));
 
+
+
+        public static readonly DependencyProperty StripCountProperty =
+            DependencyProperty.Register(nameof(StripCount), typeof(int), typeof(VisualizerControl), new PropertyMetadata(128));
+        public static readonly DependencyProperty StripSpacingProperty =
+            DependencyProperty.Register(nameof(StripSpacing), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.2f));
+        public static readonly DependencyProperty CircleStripCountProperty =
+            DependencyProperty.Register(nameof(CircleStripCount), typeof(int), typeof(VisualizerControl), new PropertyMetadata(128));
+        public static readonly DependencyProperty CircleStripSpacingProperty =
+            DependencyProperty.Register(nameof(CircleStripSpacing), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.2f));
+        public static readonly DependencyProperty CircleStripRotationSpeedProperty =
+            DependencyProperty.Register(nameof(CircleStripRotationSpeed), typeof (double), typeof(VisualizerControl), new PropertyMetadata(.5));
 
 
 
@@ -180,12 +190,24 @@ namespace WpfAudioVisualizer
                 return;
 
             if (visualizerControl.IsRendering)
-                throw new InvalidOperationException("SpectrumSize on only be set while not rendering");
+                throw new InvalidOperationException($"{nameof(SpectrumSize)} on only be set while not rendering");
 
             visualizerControl._visualizer.Size = spectrumSize * 2;
         }
 
-        private static void EnableRenderingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void SpectrumSampleRateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is not VisualizerControl visualizerControl ||
+                e.NewValue is not int spectrumSampleRate)
+                return;
+
+            if (visualizerControl.IsRendering)
+                throw new InvalidOperationException($"{nameof(SpectrumSampleRate)} on only be set while not rendering");
+
+            visualizerControl._capture.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(spectrumSampleRate, 1);
+        }
+
+        private static void RenderEnableChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is not VisualizerControl visualizerControl ||
                 e.NewValue is not bool value)
@@ -204,12 +226,14 @@ namespace WpfAudioVisualizer
         private void CaptureDataAvailable(object? sender, WaveInEventArgs e)
         {
             int len = e.BytesRecorded / 4;
-            double[] result = new double[len];
+            double[] result = _doubleArrayPool.Rent(len);
 
             for (int i = 0; i < len; i++)
                 result[i] = BitConverter.ToSingle(e.Buffer, i * 4);
 
-            _visualizer.PushSampleData(result);
+            _visualizer.PushSampleData(result, len);
+
+            _doubleArrayPool.Return(result);
         }
 
         protected override void OnRender(DrawingContext drawingContext)
@@ -219,9 +243,12 @@ namespace WpfAudioVisualizer
             if (_spectrumData == null)
                 return;
 
+            TimeSpan elapsedTime = DateTime.Now - _startTime;
+
             DrawCurve(drawingContext, _visualizer.SampleData);
             DrawStrips(drawingContext, _spectrumData);
             DrawBorder(drawingContext, _spectrumData);
+            DrawCircleStrips(drawingContext, _spectrumData, elapsedTime.TotalSeconds);
         }
 
         private void DrawStrips(DrawingContext drawingContext, double[] spectrumData)
@@ -292,9 +319,77 @@ namespace WpfAudioVisualizer
             drawingContext.DrawRectangle(brush4, null, new Rect(new Point(0, ActualHeight - thickness), new Size(ActualWidth, thickness)));
         }
 
-        private void DrawCircleStrips(DrawingContext drawingContext, double[] spectrumData)
+        private void DrawCircleStrips(DrawingContext drawingContext, double[] spectrumData, double time)
         {
+            double[] bassArea = Visualizer.TakeSpectrumOfFrequency(spectrumData, _capture.WaveFormat.SampleRate, 250);
+            double bassScale = bassArea.Average() * 100;
+            double extraScale = Math.Min(ActualWidth, ActualHeight) / 6;
 
+            int stripCount = CircleStripCount;
+            double xOffset = ActualWidth / 2;
+            double yOffset = ActualHeight / 2;
+            double radius = Math.Min(ActualWidth, ActualHeight) / 4 + extraScale * bassScale;
+            double spacing = CircleStripSpacing;
+            double rotation = CircleStripRotationSpeed * time % (Math.PI * 2);
+            double scale = ActualWidth / 6 * 10;
+
+            double rotationAngle = Math.PI / 180 * rotation;
+            double blockWidth = Math.PI * 2 / stripCount;
+            double stripWidth = blockWidth * (1 - spacing);
+            Point[] points = _pointArrayPool.Rent(stripCount);
+
+            for (int i = 0; i < stripCount; i++)
+            {
+                double x = blockWidth * i + rotationAngle;
+                double y = spectrumData[i * spectrumData.Length / stripCount] * scale;
+                points[i] = new Point(x, y);
+            }
+
+            double maxHeight = points.Max(v => v.Y);
+            double outerRadius = radius + maxHeight;
+
+            double gradientStart = radius / outerRadius;
+
+            GetCurrentColor(out var color1, out var color2);
+            RadialGradientBrush brush = new RadialGradientBrush(
+                new GradientStopCollection()
+                {
+                    new GradientStop(color1, 0),
+                    new GradientStop(color1, gradientStart),
+                    new GradientStop(color2, 1),
+                });
+
+            PathGeometry pathGeometry = new PathGeometry();
+
+            for (int i = 0; i < stripCount; i++)
+            {
+                Point p = points[i];
+                double cosStart = Math.Cos(p.X);
+                double sinStart = Math.Sin(p.X);
+                double cosEnd = Math.Cos(p.X + stripWidth);
+                double sinEnd = Math.Sin(p.X + stripWidth);
+
+                Point
+                    p0 = new Point(cosStart * radius + xOffset, sinStart * radius + yOffset),
+                    p1 = new Point(cosEnd * radius + xOffset, sinEnd * radius + yOffset),
+                    p2 = new Point(cosEnd * (radius + p.Y) + xOffset, sinEnd * (radius + p.Y) + yOffset),
+                    p3 = new Point(cosStart * (radius + p.Y) + xOffset, sinStart * (radius + p.Y) + yOffset);
+
+                pathGeometry.Figures.Add(
+                    new PathFigure()
+                    {
+                        StartPoint = p0,
+                        Segments =
+                        {
+                            new LineSegment() { Point = p1 },
+                            new LineSegment() { Point = p2 },
+                            new LineSegment() { Point = p3 },
+                        },
+                    });
+            }
+
+            _pointArrayPool.Return(points);
+            drawingContext.DrawGeometry(brush, null, pathGeometry);
         }
 
         private void DrawCurve(DrawingContext drawingContext, double[] spectrumData)
