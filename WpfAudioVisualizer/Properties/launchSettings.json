@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AudioVisualizerWpf": {
+      "commandName": "Project",
+      "commandLineArgs": "-f --opacity 0.3"
+    }
+  }
+}

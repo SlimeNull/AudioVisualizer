@@ -29,7 +29,7 @@ namespace LibAudioVisualizer
 
                 _size = value;
                 _sampleData = new double[value];
-                _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, value / 2);
+                _dynamics = new SecondOrderDynamicsForArray(3, 1, 0, 0, value / 2);
             }
         }
 
@@ -42,7 +42,7 @@ namespace LibAudioVisualizer
 
             _lastTime = DateTime.Now;
             _sampleData = new double[size];
-            _dynamics = new SecondOrderDynamicsForArray(1, 1, 1, 0, size / 2);
+            _dynamics = new SecondOrderDynamicsForArray(3, 1, 0, 0, size / 2);
         }
 
         /// <summary>

@@ -148,6 +148,42 @@ namespace WpfAudioVisualizer
         }
 
 
+        public bool EnableCurveRendering
+        {
+            get { return (bool)GetValue(EnableCurveProperty); }
+            set { SetValue(EnableCurveProperty, value); }
+        }
+
+        public bool EnableStripsRendering
+        {
+            get { return (bool)GetValue(EnableStripsProperty); }
+            set { SetValue(EnableStripsProperty, value); }
+        }
+
+        public bool EnableBorderRendering
+        {
+            get { return (bool)GetValue(EnableBorderDrawingProperty); }
+            set { SetValue(EnableBorderDrawingProperty, value); }
+        }
+
+        public bool EnableCircleStripsRendering
+        {
+            get { return (bool)GetValue(EnableCircleStripsRenderingProperty); }
+            set { SetValue(EnableCircleStripsRenderingProperty, value); }
+        }
+
+        public static readonly DependencyProperty EnableCurveProperty =
+            DependencyProperty.Register(nameof(EnableCurveRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+        public static readonly DependencyProperty EnableStripsProperty =
+            DependencyProperty.Register(nameof(EnableStripsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+        public static readonly DependencyProperty EnableBorderDrawingProperty =
+            DependencyProperty.Register(nameof(EnableBorderRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+        public static readonly DependencyProperty EnableCircleStripsRenderingProperty =
+            DependencyProperty.Register(nameof(EnableCircleStripsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+
+
+
+
 
         public static readonly DependencyProperty SpectrumSizeProperty =
             DependencyProperty.Register(nameof(SpectrumSize), typeof(int), typeof(VisualizerControl), new PropertyMetadata(512, SpectrumSizeChanged));
@@ -245,10 +281,17 @@ namespace WpfAudioVisualizer
 
             TimeSpan elapsedTime = DateTime.Now - _startTime;
 
-            DrawCurve(drawingContext, _visualizer.SampleData);
-            DrawStrips(drawingContext, _spectrumData);
-            DrawBorder(drawingContext, _spectrumData);
-            DrawCircleStrips(drawingContext, _spectrumData, elapsedTime.TotalSeconds);
+            if (EnableCurveRendering)
+                DrawCurve(drawingContext, _visualizer.SampleData);
+
+            if (EnableStripsRendering)
+                DrawStrips(drawingContext, _spectrumData);
+
+            if (EnableBorderRendering)
+                DrawBorder(drawingContext, _spectrumData);
+
+            if (EnableCircleStripsRendering)
+                DrawCircleStrips(drawingContext, _spectrumData, elapsedTime.TotalSeconds);
         }
 
         private void DrawStrips(DrawingContext drawingContext, double[] spectrumData)

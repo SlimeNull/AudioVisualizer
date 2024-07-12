@@ -7,7 +7,7 @@
         mc:Ignorable="d" Background="Black"
         d:DataContext="{d:DesignInstance Type=local:MainWindow}"
         Loaded="Window_Loaded" Closed="Window_Closed"
-        Title="MainWindow" Height="570" Width="800">
+        Title="MainWindow" Height="570" Width="800" >
     <Grid>
         <local:VisualizerControl x:Name="visualizerControl"
                                  SpectrumBlurry="0"
