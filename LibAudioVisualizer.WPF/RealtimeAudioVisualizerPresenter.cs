@@ -59,34 +59,41 @@ namespace LibAudioVisualizer.WPF
             ColorUtils.GetAllHsvColors();
 
 
-
+        /// <summary>
+        /// 频谱尺寸 (FFT 计算的点数, 必须是 2 的 n 次幂, 实际输出为该值的一半)
+        /// </summary>
         public int SpectrumSize
         {
             get { return (int)GetValue(SpectrumSizeProperty); }
             set { SetValue(SpectrumSizeProperty, value); }
         }
 
+        /// <summary>
+        /// 频谱采样率 (必须与音频采样率相同, 否则会出现异常)
+        /// </summary>
         public int SpectrumSampleRate
         {
             get { return (int)GetValue(SpectrumSampleRateProperty); }
             set { SetValue(SpectrumSampleRateProperty, value); }
         }
 
+        /// <summary>
+        /// 频谱模糊 (对频谱进行模糊处理, 使频谱更加平滑, 0 表示不进行模糊处理, 数值越大模糊程度越高)
+        /// </summary>
         public int SpectrumBlurry
         {
             get { return (int)GetValue(SpectrumBlurryProperty); }
             set { SetValue(SpectrumBlurryProperty, value); }
         }
 
+        /// <summary>
+        /// 频谱缩放 (对频谱进行缩放, 使频谱更加明显, 1.0 表示不进行缩放, 数值越大缩放程度越高)
+        /// </summary>
         public double SpectrumFactor
         {
             get { return (double)GetValue(SpectrumFactorProperty); }
             set { SetValue(SpectrumFactorProperty, value); }
         }
-
-
-
-
 
         public bool IsRendering
         {
@@ -172,6 +179,12 @@ namespace LibAudioVisualizer.WPF
             set { SetValue(EnableCircleStripsRenderingProperty, value); }
         }
 
+        public Thickness BorderThicknessScaleFactor
+        {
+            get { return (Thickness)GetValue(BorderThicknessScaleFactorProperty); }
+            set { SetValue(BorderThicknessScaleFactorProperty, value); }
+        }
+
         public static readonly DependencyProperty EnableCurveProperty =
             DependencyProperty.Register(nameof(EnableCurveRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
         public static readonly DependencyProperty EnableStripsProperty =
@@ -214,6 +227,8 @@ namespace LibAudioVisualizer.WPF
         public static readonly DependencyProperty CircleStripRotationSpeedProperty =
             DependencyProperty.Register(nameof(CircleStripRotationSpeed), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(.5));
 
+        public static readonly DependencyProperty BorderThicknessScaleFactorProperty =
+            DependencyProperty.Register(nameof(BorderThicknessScaleFactor), typeof(Thickness), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(new Thickness(1)));
 
 
         private static void SpectrumSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -343,20 +358,26 @@ namespace LibAudioVisualizer.WPF
             if (thickness <= 0)
                 return;
 
+            var scaleFactor = BorderThicknessScaleFactor;
+
             GetCurrentColor(out var color1, out var color2);
             color2.A = 0;
 
+            // top
             LinearGradientBrush brush1 = new LinearGradientBrush(color1, color2, new Point(0, 0), new Point(0, 1));
-            drawingContext.DrawRectangle(brush1, null, new Rect(new Point(0, 0), new Size(ActualWidth, thickness)));
+            drawingContext.DrawRectangle(brush1, null, new Rect(new Point(0, 0), new Size(ActualWidth, thickness * scaleFactor.Top)));
 
+            // left
             LinearGradientBrush brush2 = new LinearGradientBrush(color1, color2, new Point(0, 0), new Point(1, 0));
-            drawingContext.DrawRectangle(brush2, null, new Rect(new Point(0, 0), new Size(thickness, ActualHeight)));
+            drawingContext.DrawRectangle(brush2, null, new Rect(new Point(0, 0), new Size(thickness * scaleFactor.Left, ActualHeight)));
 
+            // right
             LinearGradientBrush brush3 = new LinearGradientBrush(color1, color2, new Point(1, 0), new Point(0, 0));
-            drawingContext.DrawRectangle(brush3, null, new Rect(new Point(ActualWidth - thickness, 0), new Size(thickness, ActualHeight)));
+            drawingContext.DrawRectangle(brush3, null, new Rect(new Point(ActualWidth - thickness * scaleFactor.Right, 0), new Size(thickness * scaleFactor.Right, ActualHeight)));
 
+            // bottom
             LinearGradientBrush brush4 = new LinearGradientBrush(color1, color2, new Point(0, 1), new Point(0, 0));
-            drawingContext.DrawRectangle(brush4, null, new Rect(new Point(0, ActualHeight - thickness), new Size(ActualWidth, thickness)));
+            drawingContext.DrawRectangle(brush4, null, new Rect(new Point(0, ActualHeight - thickness * scaleFactor.Bottom), new Size(ActualWidth, thickness * scaleFactor.Bottom)));
         }
 
         private void DrawCircleStrips(DrawingContext drawingContext, double[] spectrumData, double time)
