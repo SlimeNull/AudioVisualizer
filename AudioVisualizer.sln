@@ -22,6 +22,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AudioVisualizerDxDesktop", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LibDynamics", "LibDynamics\LibDynamics.csproj", "{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibAudioVisualizer.WPF", "LibAudioVisualizer.WPF\LibAudioVisualizer.WPF.csproj", "{1AAE7FAE-7034-496A-BE3D-9806A85266BB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F31F51C2-25D8-4AF1-891C-01087BB7E5EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AAE7FAE-7034-496A-BE3D-9806A85266BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AAE7FAE-7034-496A-BE3D-9806A85266BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AAE7FAE-7034-496A-BE3D-9806A85266BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AAE7FAE-7034-496A-BE3D-9806A85266BB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -17,20 +17,20 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using LibAudioVisualizer;
-using LibAudioVisualizer.Utilities;
+using LibAudioVisualizer.WPF.Utilities;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
-namespace WpfAudioVisualizer
+namespace LibAudioVisualizer.WPF
 {
-    public class VisualizerControl : Control
+    public class RealtimeAudioVisualizerPresenter : FrameworkElement
     {
-        static VisualizerControl()
+        static RealtimeAudioVisualizerPresenter()
         {
-            DefaultStyleKeyProperty.OverrideMetadata(typeof(VisualizerControl), new FrameworkPropertyMetadata(typeof(VisualizerControl)));
+            DefaultStyleKeyProperty.OverrideMetadata(typeof(RealtimeAudioVisualizerPresenter), new FrameworkPropertyMetadata(typeof(RealtimeAudioVisualizerPresenter)));
         }
 
-        public VisualizerControl()
+        public RealtimeAudioVisualizerPresenter()
         {
             _capture = new WasapiLoopbackCapture();
             _visualizer = new Visualizer(512);
@@ -42,7 +42,7 @@ namespace WpfAudioVisualizer
             _capture.DataAvailable += CaptureDataAvailable;
         }
 
-        ~VisualizerControl()
+        ~RealtimeAudioVisualizerPresenter()
         {
             if (_capture.CaptureState == CaptureState.Capturing)
                 _capture.StopRecording();
@@ -173,55 +173,52 @@ namespace WpfAudioVisualizer
         }
 
         public static readonly DependencyProperty EnableCurveProperty =
-            DependencyProperty.Register(nameof(EnableCurveRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+            DependencyProperty.Register(nameof(EnableCurveRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
         public static readonly DependencyProperty EnableStripsProperty =
-            DependencyProperty.Register(nameof(EnableStripsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+            DependencyProperty.Register(nameof(EnableStripsRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
         public static readonly DependencyProperty EnableBorderDrawingProperty =
-            DependencyProperty.Register(nameof(EnableBorderRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
+            DependencyProperty.Register(nameof(EnableBorderRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
         public static readonly DependencyProperty EnableCircleStripsRenderingProperty =
-            DependencyProperty.Register(nameof(EnableCircleStripsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(true));
-
-
-
+            DependencyProperty.Register(nameof(EnableCircleStripsRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
 
 
         public static readonly DependencyProperty SpectrumSizeProperty =
-            DependencyProperty.Register(nameof(SpectrumSize), typeof(int), typeof(VisualizerControl), new PropertyMetadata(512, SpectrumSizeChanged));
+            DependencyProperty.Register(nameof(SpectrumSize), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(512, SpectrumSizeChanged));
         public static readonly DependencyProperty SpectrumSampleRateProperty =
-            DependencyProperty.Register(nameof(SpectrumSampleRate), typeof(int), typeof(VisualizerControl), new PropertyMetadata(8192, SpectrumSampleRateChanged));
+            DependencyProperty.Register(nameof(SpectrumSampleRate), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(8192, SpectrumSampleRateChanged));
         public static readonly DependencyProperty SpectrumBlurryProperty =
-            DependencyProperty.Register(nameof(SpectrumBlurry), typeof(int), typeof(VisualizerControl), new PropertyMetadata(0));
+            DependencyProperty.Register(nameof(SpectrumBlurry), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(0));
         public static readonly DependencyProperty SpectrumFactorProperty =
-            DependencyProperty.Register(nameof(SpectrumFactor), typeof(double), typeof(VisualizerControl), new PropertyMetadata(1.0));
+            DependencyProperty.Register(nameof(SpectrumFactor), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(1.0));
         public static readonly DependencyPropertyKey IsRenderingProperty =
-            DependencyProperty.RegisterReadOnly(nameof(IsRendering), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(false));
+            DependencyProperty.RegisterReadOnly(nameof(IsRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(false));
         public static readonly DependencyProperty EnableRenderingProperty =
-            DependencyProperty.Register(nameof(RenderEnabled), typeof(bool), typeof(VisualizerControl), new PropertyMetadata(false, RenderEnableChanged));
+            DependencyProperty.Register(nameof(RenderEnabled), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(false, RenderEnableChanged));
         public static readonly DependencyProperty RenderIntervalProperty =
-            DependencyProperty.Register(nameof(RenderInterval), typeof(int), typeof(VisualizerControl), new PropertyMetadata(10));
+            DependencyProperty.Register(nameof(RenderInterval), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(10));
         public static readonly DependencyProperty ColorTransitionTimeProperty =
-            DependencyProperty.Register(nameof(ColorTransitionTime), typeof(float), typeof(VisualizerControl), new PropertyMetadata(30f));
+            DependencyProperty.Register(nameof(ColorTransitionTime), typeof(float), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(30f));
         public static readonly DependencyProperty ColorGradientOffsetProperty =
-            DependencyProperty.Register(nameof(ColorGradientOffset), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.1f));
+            DependencyProperty.Register(nameof(ColorGradientOffset), typeof(float), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(.1f));
 
 
 
         public static readonly DependencyProperty StripCountProperty =
-            DependencyProperty.Register(nameof(StripCount), typeof(int), typeof(VisualizerControl), new PropertyMetadata(128));
+            DependencyProperty.Register(nameof(StripCount), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(128));
         public static readonly DependencyProperty StripSpacingProperty =
-            DependencyProperty.Register(nameof(StripSpacing), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.2f));
+            DependencyProperty.Register(nameof(StripSpacing), typeof(float), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(.2f));
         public static readonly DependencyProperty CircleStripCountProperty =
-            DependencyProperty.Register(nameof(CircleStripCount), typeof(int), typeof(VisualizerControl), new PropertyMetadata(128));
+            DependencyProperty.Register(nameof(CircleStripCount), typeof(int), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(128));
         public static readonly DependencyProperty CircleStripSpacingProperty =
-            DependencyProperty.Register(nameof(CircleStripSpacing), typeof(float), typeof(VisualizerControl), new PropertyMetadata(.2f));
+            DependencyProperty.Register(nameof(CircleStripSpacing), typeof(float), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(.2f));
         public static readonly DependencyProperty CircleStripRotationSpeedProperty =
-            DependencyProperty.Register(nameof(CircleStripRotationSpeed), typeof (double), typeof(VisualizerControl), new PropertyMetadata(.5));
+            DependencyProperty.Register(nameof(CircleStripRotationSpeed), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(.5));
 
 
 
         private static void SpectrumSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is not VisualizerControl visualizerControl ||
+            if (d is not RealtimeAudioVisualizerPresenter visualizerControl ||
                 e.NewValue is not int spectrumSize)
                 return;
 
@@ -233,7 +230,7 @@ namespace WpfAudioVisualizer
 
         private static void SpectrumSampleRateChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is not VisualizerControl visualizerControl ||
+            if (d is not RealtimeAudioVisualizerPresenter visualizerControl ||
                 e.NewValue is not int spectrumSampleRate)
                 return;
 
@@ -245,7 +242,7 @@ namespace WpfAudioVisualizer
 
         private static void RenderEnableChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is not VisualizerControl visualizerControl ||
+            if (d is not RealtimeAudioVisualizerPresenter visualizerControl ||
                 e.NewValue is not bool value)
                 return;
 #if DEBUG

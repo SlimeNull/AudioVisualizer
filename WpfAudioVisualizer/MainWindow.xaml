@@ -7,11 +7,13 @@
         mc:Ignorable="d" Background="Black"
         d:DataContext="{d:DesignInstance Type=local:MainWindow}"
         Loaded="Window_Loaded" Closed="Window_Closed"
+        xmlns:vwpf="clr-namespace:LibAudioVisualizer.WPF;assembly=LibAudioVisualizer.WPF"
         Title="MainWindow" Height="570" Width="800" >
     <Grid>
-        <local:VisualizerControl x:Name="visualizerControl"
-                                 SpectrumBlurry="0"
-                                 StripSpacing=".5"
-                                 ColorGradientOffset=".1"/>
+        <vwpf:RealtimeAudioVisualizerPresenter
+            x:Name="visualizerControl"
+            SpectrumBlurry="0"
+            StripSpacing=".5"
+            ColorGradientOffset=".1"/>
     </Grid>
 </Window>
