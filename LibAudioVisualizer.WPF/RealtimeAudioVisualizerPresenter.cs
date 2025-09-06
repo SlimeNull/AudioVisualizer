@@ -185,6 +185,26 @@ namespace LibAudioVisualizer.WPF
             set { SetValue(BorderThicknessScaleFactorProperty, value); }
         }
 
+        public double CurveScaleFactor
+        {
+            get { return (double)GetValue(CurveScaleFactorProperty); }
+            set { SetValue(CurveScaleFactorProperty, value); }
+        }
+
+        public double StripsScaleFactor
+        {
+            get { return (double)GetValue(StripsScaleFactorProperty); }
+            set { SetValue(StripsScaleFactorProperty, value); }
+        }
+
+        public double CircleStripsScaleFactor
+        {
+            get { return (double)GetValue(CircleStripsScaleFactorProperty); }
+            set { SetValue(CircleStripsScaleFactorProperty, value); }
+        }
+
+
+
         public static readonly DependencyProperty EnableCurveProperty =
             DependencyProperty.Register(nameof(EnableCurveRendering), typeof(bool), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(true));
         public static readonly DependencyProperty EnableStripsProperty =
@@ -229,6 +249,13 @@ namespace LibAudioVisualizer.WPF
 
         public static readonly DependencyProperty BorderThicknessScaleFactorProperty =
             DependencyProperty.Register(nameof(BorderThicknessScaleFactor), typeof(Thickness), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(new Thickness(1)));
+        public static readonly DependencyProperty CurveScaleFactorProperty =
+            DependencyProperty.Register(nameof(CurveScaleFactor), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(1.0));
+        public static readonly DependencyProperty StripsScaleFactorProperty =
+            DependencyProperty.Register(nameof(StripsScaleFactor), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(1.0));
+        public static readonly DependencyProperty CircleStripsScaleFactorProperty =
+            DependencyProperty.Register(nameof(CircleStripsScaleFactor), typeof(double), typeof(RealtimeAudioVisualizerPresenter), new PropertyMetadata(1.0));
+
 
 
         private static void SpectrumSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -315,13 +342,14 @@ namespace LibAudioVisualizer.WPF
                 thickness = 1;
 
             double minY = ActualHeight;
+            var scaleFactor = StripsScaleFactor;
 
             PathGeometry pathGeometry = new PathGeometry();
 
             int end = stripCount - 1;
             for (int i = 0; i < stripCount; i++)
             {
-                double value = spectrumData[i * spectrumData.Length / stripCount];
+                double value = spectrumData[i * spectrumData.Length / stripCount] * scaleFactor;
                 double y = ActualHeight * (1 - value * 10);
                 double x = ((double)i / end) * ActualWidth;
 
@@ -456,7 +484,7 @@ namespace LibAudioVisualizer.WPF
         private void DrawCurve(DrawingContext drawingContext, double[] spectrumData)
         {
             double yBase = ActualHeight / 2;
-            double scale = Math.Min(ActualHeight / 10, 100);
+            double scale = Math.Min(ActualHeight / 10, 100) * CurveScaleFactor;
             double drawingWidth = ActualWidth;
 
             Point[] points = new Point[spectrumData.Length];
